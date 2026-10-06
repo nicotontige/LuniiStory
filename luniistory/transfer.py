@@ -1,0 +1,158 @@
+"""Transfer to the Lunii: detection, conversion, then import.
+
+The import itself is delegated to Lunii.QT. The one link added here is the
+Telmi → STUdio conversion, which makes store packs readable by that engine.
+"""
+
+import logging
+import shutil
+import zipfile
+from pathlib import Path
+
+from luniistory import config, library
+from luniistory.convert import telmi
+from luniistory.i18n import _, _n
+from luniistory.lunii_api import LUNII_V1, LUNII_V2, LUNII_V3, LuniiDevice, find_devices, which_ffmpeg
+
+VERSION_NAMES = {LUNII_V1: "Lunii v1", LUNII_V2: "Lunii v2", LUNII_V3: "Lunii v3"}
+
+
+class TransferError(Exception):
+    pass
+
+
+def find_lunii():
+    """Mount points of the connected devices."""
+    return [str(path) for path in find_devices()]
+
+
+def open_device(mount_point):
+    device = LuniiDevice(str(mount_point))
+    if not device.device_version:
+        raise TransferError(_("{path} is not a recognised Lunii", path=mount_point))
+    return device
+
+
+def describe(device):
+    version = VERSION_NAMES.get(device.device_version, _("version {number}", number=device.device_version))
+    firmware = f"{device.fw_vers_major}.{device.fw_vers_minor}.{device.fw_vers_subminor}"
+    stories = _n(len(device.stories), "{count} story", "{count} stories")
+    return _(
+        "{version} — firmware {firmware} — {stories}",
+        version=version, firmware=firmware, stories=stories,
+    )
+
+
+def is_telmi_archive(archive_path):
+    """A Telmi pack is recognised by its metadata.json / nodes.json pair."""
+    if not zipfile.is_zipfile(archive_path):
+        return False
+    with zipfile.ZipFile(archive_path) as archive:
+        names = archive.namelist()
+    has_metadata = any(name.endswith("metadata.json") for name in names)
+    has_nodes = any(name.endswith("nodes.json") for name in names)
+    return has_metadata and has_nodes
+
+
+def prepare_archive(archive_path, on_progress=None):
+    """Makes the archive importable by Lunii.QT.
+
+    A Telmi pack is converted to STUdio under the temporary folder; any other
+    format (STUdio, .pk, 7z) is passed through untouched. The second tuple
+    element says whether the returned path is temporary.
+
+    ``on_progress`` receives ``(current_file, total)``.
+    """
+    archive_path = Path(archive_path)
+    if not is_telmi_archive(archive_path):
+        return archive_path, False
+
+    config.ensure_dirs()
+    work_dir = config.TMP_DIR / f"{archive_path.stem}-telmi"
+    studio_zip = config.TMP_DIR / f"{archive_path.stem}.studio.zip"
+    telmi.zip_to_studio_zip(archive_path, studio_zip, work_dir, progress=on_progress)
+    return studio_zip, True
+
+
+def install_archive(device, archive_path, on_log=None, on_progress=None):
+    """Converts if needed, then imports an archive already on disk.
+
+    ``on_progress`` receives ``(step, current, total)``, the step naming the
+    phase under way: conversion, then transfer.
+    """
+    def conversion_progress(current, total):
+        if on_progress:
+            on_progress(_("Converting"), current, total)
+
+    prepared, temporary = prepare_archive(archive_path, on_progress=conversion_progress)
+    try:
+        return _import(device, prepared, on_log=on_log, on_progress=on_progress)
+    finally:
+        if temporary:
+            prepared.unlink(missing_ok=True)
+
+
+def install_story(device, story, on_log=None, on_progress=None, session=None):
+    """Downloads the story from its store, then installs it on the device.
+
+    ``on_progress`` receives ``(step, current, total)``.
+    """
+    if on_log:
+        on_log(logging.INFO, _("Downloading “{title}”…", title=story.title))
+
+    def download_progress(received, total):
+        if on_progress:
+            on_progress(_("Downloading"), received, total)
+
+    archive = library.download(story, on_progress=download_progress, session=session)
+    return install_archive(device, archive, on_log=on_log, on_progress=on_progress)
+
+
+def _import(device, archive_path, on_log=None, on_progress=None):
+    connections = []
+    if on_log:
+        device.signal_logger.connect(on_log)
+        connections.append((device.signal_logger, on_log))
+    if on_progress:
+        def report(name, current, total):
+            on_progress(_("Transferring"), current, total)
+
+        device.signal_story_progress.connect(report)
+        connections.append((device.signal_story_progress, report))
+
+    try:
+        result = device.import_story(str(archive_path))
+    finally:
+        for signal, handler in connections:
+            signal.disconnect(handler)
+
+    if not result:
+        raise TransferError(_("The Lunii refused to import {name}", name=Path(archive_path).name))
+    return result
+
+
+def remove_story(device, short_uuid):
+    return device.remove_story(short_uuid)
+
+
+def installed_stories(device):
+    """Stories present on the device, in menu order."""
+    return [
+        {
+            "uuid": str(story.uuid),
+            "short_uuid": story.uuid.hex[24:].upper(),
+            "name": story.name,
+            "night_mode": bool(getattr(story, "nm", False)),
+        }
+        for story in device.stories
+    ]
+
+
+def ffmpeg_available():
+    """FFMPEG is only needed for packs whose audio is not Lunii-ready MP3."""
+    return bool(which_ffmpeg())
+
+
+def cleanup_tmp():
+    shutil.rmtree(config.TMP_DIR, ignore_errors=True)
+    config.ensure_dirs()

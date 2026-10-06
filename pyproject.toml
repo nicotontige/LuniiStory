@@ -1,0 +1,20 @@
+[project]
+name = "luniistory"
+description = "Browse community story stores and send the stories to a Lunii"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dynamic = ["version", "dependencies"]
+
+[project.scripts]
+luniistory = "luniistory.cli:main"
+
+[tool.setuptools]
+packages = ["luniistory", "luniistory.convert", "luniistory.ui"]
+
+[tool.setuptools.package-data]
+luniistory = ["locales/*.json", "ui/*.qss"]
+
+[tool.setuptools.dynamic]
+# Single source of truth, so a release tag can be checked against the code.
+version = { attr = "luniistory.__version__" }
+dependencies = { file = ["requirements.txt"] }

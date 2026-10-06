@@ -1,0 +1,179 @@
+QWidget {
+    background: #faf7f2;
+    color: #2d2a26;
+    font-size: 13px;
+}
+
+/* Les libellés héritent sinon du fond de QWidget et découpent des rectangles
+   clairs par-dessus l'entête et les cartes. */
+QLabel, QCheckBox {
+    background: transparent;
+}
+
+#header {
+    background: #2e144b;
+    color: #ffffff;
+}
+
+#header QLabel {
+    color: #ffffff;
+}
+
+#header QComboBox {
+    background: #43275f;
+    border-color: #5c3f7a;
+    color: #ffffff;
+}
+
+#appTitle {
+    font-size: 19px;
+    font-weight: 600;
+}
+
+#deviceStatus {
+    color: #d9cfe6;
+}
+
+QPushButton {
+    background: #ffffff;
+    border: 1px solid #d8d1c7;
+    border-radius: 6px;
+    padding: 6px 14px;
+}
+
+QPushButton:hover {
+    border-color: #2e144b;
+}
+
+QPushButton:disabled {
+    color: #a8a29a;
+    background: #f0ece6;
+}
+
+QPushButton#primary {
+    background: #6b2fa8;
+    border: none;
+    color: #ffffff;
+    font-weight: 600;
+    padding: 9px 20px;
+}
+
+QPushButton#primary:hover {
+    background: #7f3cc4;
+}
+
+QPushButton#primary:disabled {
+    background: #cfc7d8;
+    color: #f2eef7;
+}
+
+QLineEdit, QComboBox {
+    background: #ffffff;
+    border: 1px solid #d8d1c7;
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+
+QTabBar::tab {
+    background: transparent;
+    padding: 8px 16px;
+    border-bottom: 2px solid transparent;
+}
+
+QTabBar::tab:selected {
+    border-bottom: 2px solid #6b2fa8;
+    font-weight: 600;
+}
+
+QTabWidget::pane {
+    border: none;
+}
+
+QListWidget {
+    background: #faf7f2;
+    border: none;
+}
+
+#storyCard {
+    background: #ffffff;
+    border: 1px solid #ebe5dc;
+    border-radius: 10px;
+}
+
+#storyCard[state="installed"] {
+    background: #f3f1ed;
+}
+
+#storyCard[state="done"] {
+    border-color: #4a9d5f;
+}
+
+#storyCard[state="failed"] {
+    border-color: #c0483c;
+}
+
+#thumbnail {
+    background: #ebe5dc;
+    border: 1px solid #e3ddd4;
+    border-radius: 6px;
+    color: #a8a29a;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border: 1px solid #c7bfb3;
+    border-radius: 4px;
+    background: #ffffff;
+}
+
+QCheckBox::indicator:checked {
+    background: #6b2fa8;
+    border-color: #6b2fa8;
+}
+
+#cardTitle {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#cardSubtitle {
+    color: #7d766c;
+    font-size: 12px;
+}
+
+#cardDescription {
+    color: #5d574f;
+    font-size: 12px;
+}
+
+#cardState {
+    color: #7d766c;
+    font-size: 12px;
+}
+
+#footer {
+    background: #f2eee8;
+    border-top: 1px solid #e3ddd4;
+}
+
+QProgressBar {
+    background: #e3ddd4;
+    border: none;
+    border-radius: 5px;
+    height: 10px;
+    text-align: center;
+}
+
+QProgressBar::chunk {
+    background: #6b2fa8;
+    border-radius: 5px;
+}
+
+QPlainTextEdit {
+    background: #ffffff;
+    border: 1px solid #e3ddd4;
+    border-radius: 6px;
+    font-family: "Menlo", "Consolas", monospace;
+    font-size: 11px;
+}

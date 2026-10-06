@@ -1,0 +1,159 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  # Lets you rehearse the build without publishing anything.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: tag matches the code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Compare the tag with __version__
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          code=$(python -c "import re,pathlib; print(re.search(r'__version__ = \"([^\"]+)\"', pathlib.Path('luniistory/__init__.py').read_text()).group(1))")
+          tag="${GITHUB_REF_NAME#v}"
+          echo "tag $tag, code $code"
+          if [ "$tag" != "$code" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match __version__ = $code"
+            exit 1
+          fi
+
+  build:
+    name: ${{ matrix.target }}
+    needs: check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04      # oldest glibc still supported, for portability
+            target: linux-x86_64
+          - os: macos-13          # Intel
+            target: macos-x86_64
+          - os: macos-14          # Apple silicon
+            target: macos-arm64
+          - os: windows-latest
+            target: windows-x86_64
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - name: Install Qt system libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run the test suite
+        run: python -m pytest -q
+
+      - name: Read the version
+        shell: bash
+        run: |
+          python -c "import re,pathlib; print('VERSION=' + re.search(r'__version__ = \"([^\"]+)\"', pathlib.Path('luniistory/__init__.py').read_text()).group(1))" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: pyinstaller --noconfirm --log-level WARN luniistory.spec
+
+      # ditto keeps the bundle's symlinks and attributes; a plain zip breaks the
+      # Qt frameworks and the .app refuses to open.
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: ditto -c -k --keepParent "dist/luniiStory.app" "luniistory-${VERSION}-${{ matrix.target }}.zip"
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: tar -czf "luniistory-${VERSION}-${{ matrix.target }}.tar.gz" -C dist luniistory
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist/luniistory/* -DestinationPath "luniistory-$env:VERSION-${{ matrix.target }}.zip"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.target }}
+          path: |
+            *.zip
+            *.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: publish the release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          cd artifacts
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Write the download notes
+        run: |
+          cat > notes.md <<'NOTES'
+          ## Downloads
+
+          | Platform | File |
+          | --- | --- |
+          | macOS (Apple silicon) | `*-macos-arm64.zip` |
+          | macOS (Intel) | `*-macos-x86_64.zip` |
+          | Windows | `*-windows-x86_64.zip` |
+          | Linux | `*-linux-x86_64.tar.gz` |
+
+          Nothing to install: Python, Qt and the Lunii engine are inside.
+
+          The builds are unsigned. macOS quarantines them on first launch; lift it with:
+
+          ```
+          xattr -dr com.apple.quarantine /Applications/luniiStory.app
+          ```
+
+          Check a download against `SHA256SUMS` before running it.
+          NOTES
+
+      # --notes is documented to sit above the generated changelog; --notes-file
+      # with --generate-notes is not, so it stays out of a release pipeline.
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" artifacts/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "$(cat notes.md)" \
+            --generate-notes \
+            --verify-tag
