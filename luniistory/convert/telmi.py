@@ -344,8 +344,16 @@ def _settle_controls(stage_nodes, action_nodes):
 
     for node in stage_nodes[1:]:
         for field in ("ok", "home"):
-            if dangling(node, field):
-                node[field + "Transition"] = {"actionNode": COVER_ACTION_ID, "optionIndex": 0}
+            if not dangling(node, field):
+                continue
+            node[field + "Transition"] = {"actionNode": COVER_ACTION_ID, "optionIndex": 0}
+            if field == "ok":
+                # Telmi writes "ok: null" on a stage that ends the pack, and
+                # such a stage is a closing line, not a question. Leaving it
+                # waiting for OK means pressing it twice to get out: once to
+                # confirm, once to dismiss the confirmation. It leaves on its
+                # own when the audio finishes, and OK still skips ahead.
+                node["controlSettings"]["autoplay"] = True
 
 
 def to_studio_zip(pack_dir, output_zip, progress=None):

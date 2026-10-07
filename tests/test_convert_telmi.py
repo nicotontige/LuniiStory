@@ -336,3 +336,21 @@ def test_home_always_has_a_way_to_the_menu(telmi_pack, tmp_path):
     assert any(cover in action["options"] for action in story["actionNodes"])
     for node in story["stageNodes"][1:]:
         assert node["homeTransition"]["actionNode"] == telmi.COVER_ACTION_ID
+
+
+def test_an_ending_leaves_on_its_own(telmi_pack, tmp_path):
+    """A stage that ends the pack is a closing line, not a question.
+
+    Waiting for OK there means pressing it twice to leave: once to confirm,
+    once to dismiss the confirmation.
+    """
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    nodes["stages"]["s2"]["ok"] = None
+    nodes["stages"]["s2"]["control"] = {"wheel": False, "ok": True, "home": True,
+                                        "pause": False, "autoplay": False}
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    ending = next(node for node in story["stageNodes"] if node["name"] == "s2")
+    assert ending["okTransition"]["actionNode"] == telmi.COVER_ACTION_ID
+    assert ending["controlSettings"]["autoplay"] is True
