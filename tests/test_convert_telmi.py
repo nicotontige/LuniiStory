@@ -33,7 +33,7 @@ def test_stages_and_actions_are_preserved(telmi_pack, tmp_path):
     # a0, a1, a2 from the pack, plus the home target the converter adds for s2,
     # whose home button is lit with nothing behind it.
     assert {action["id"] for action in story["actionNodes"]} == {
-        "a0", "a1", "a2", telmi.HOME_ACTION_ID,
+        "a0", "a1", "a2", telmi.COVER_ACTION_ID,
     }
 
     by_name = {node["name"]: node for node in story["stageNodes"]}
@@ -84,7 +84,10 @@ def test_dangling_transition_is_dropped(telmi_pack, tmp_path):
 
     story, _ = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
     by_name = {node["name"]: node for node in story["stageNodes"]}
-    assert by_name["s1"]["okTransition"] is None
+    # The unknown action goes, and since the button stays lit it falls back to
+    # the cover rather than pointing at something that is not there.
+    assert "a99" not in {action["id"] for action in story["actionNodes"]}
+    assert by_name["s1"]["okTransition"]["actionNode"] == telmi.COVER_ACTION_ID
 
 
 def test_missing_title_audio_is_reported(telmi_pack, tmp_path):
@@ -148,26 +151,43 @@ def test_an_enabled_button_always_leads_somewhere(telmi_pack, tmp_path):
     by_name = {node["name"]: node for node in story["stageNodes"]}
     s2 = by_name["s2"]
 
-    # Home means "back to the cover" on the device, so it is given that target.
-    assert s2["controlSettings"]["home"] is True
-    assert s2["homeTransition"]["actionNode"] == telmi.HOME_ACTION_ID
-    home = next(a for a in story["actionNodes"] if a["id"] == telmi.HOME_ACTION_ID)
-    assert home["options"] == [story["stageNodes"][0]["uuid"]]
-
-    # OK has no stand-in, so the button goes dark rather than dangling.
-    assert s2["controlSettings"]["ok"] is False
-    assert s2["okTransition"] is None
+    # Both buttons lead to the cover, which is the way out of a pack on the
+    # device: Telmi writes "ok: null" on the stages that end a story.
+    exit_action = next(a for a in story["actionNodes"] if a["id"] == telmi.COVER_ACTION_ID)
+    assert exit_action["options"] == [story["stageNodes"][0]["uuid"]]
+    for field in ("ok", "home"):
+        assert s2["controlSettings"][field] is True
+        assert s2[field + "Transition"] == {"actionNode": telmi.COVER_ACTION_ID, "optionIndex": 0}
 
 
-def test_no_home_action_is_invented_when_none_is_needed(telmi_pack, tmp_path):
+def test_no_exit_action_is_invented_when_none_is_needed(telmi_pack, tmp_path):
     nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
     for stage in nodes["stages"].values():
-        if not stage.get("home"):
-            stage["control"]["home"] = False
+        for field in ("ok", "home"):
+            if not stage.get(field):
+                stage["control"][field] = False
     (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
 
     story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
-    assert telmi.HOME_ACTION_ID not in {action["id"] for action in story["actionNodes"]}
+    assert telmi.COVER_ACTION_ID not in {action["id"] for action in story["actionNodes"]}
+
+
+def test_a_story_ending_leaves_the_pack(telmi_pack, tmp_path):
+    """Telmi marks an ending with "ok: null" while leaving the button lit.
+
+    Turning the button off there would strand a child on the last stage of the
+    story with nothing to press.
+    """
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    nodes["stages"]["s2"]["ok"] = None
+    nodes["stages"]["s2"]["control"] = {"wheel": False, "ok": True, "home": True,
+                                        "pause": False, "autoplay": True}
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    ending = next(node for node in story["stageNodes"] if node["name"] == "s2")
+    assert ending["controlSettings"]["ok"] is True
+    assert ending["okTransition"]["actionNode"] == telmi.COVER_ACTION_ID
 
 
 def test_the_indexitem_spelling_is_understood(telmi_pack, tmp_path):

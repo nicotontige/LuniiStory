@@ -230,37 +230,43 @@ def build_story_json(metadata, nodes, pack_dir):
     return story_json, assets
 
 
-HOME_ACTION_ID = "luniistory-home"
+COVER_ACTION_ID = "luniistory-cover"
 
 
 def _settle_controls(stage_nodes, action_nodes):
-    """Makes every enabled button lead somewhere.
+    """Makes every enabled button lead back to the cover.
 
-    Telmi packs leave buttons switched on with nothing behind them, because
-    Telmi OS answers those presses itself. A Lunii does not: it follows the
-    transition it was promised, reads an address that is not there and stops
-    with an SD card error. Home goes back to the cover, which is what the
-    button means on the device; OK has no sensible stand-in, so it goes dark.
+    Telmi packs leave buttons switched on with nothing behind them. A Lunii
+    follows the transition it was promised, reads an address that is not there
+    and stops with an SD card error.
+
+    Both buttons are sent to the cover node, because on the device that *is*
+    the way out: a pack's first node is its entry in the story menu. It suits
+    either case. Telmi writes ``ok: null`` on the stages that end a pack — the
+    six endings of "La maison de la sorcière" use it, and so does the "yes,
+    quit" branch of its back prompt — so OK on an ending now leaves the story
+    instead of doing nothing. And home means "take me out of here" wherever it
+    is pressed.
     """
     cover_uuid = stage_nodes[0]["uuid"]
-    home_needed = any(
-        node["controlSettings"].get("home") and not node["homeTransition"]
-        for node in stage_nodes[1:]
-    )
-    if home_needed:
-        action_nodes.append({
-            "id": HOME_ACTION_ID,
-            "name": HOME_ACTION_ID,
-            "position": {"x": 0, "y": 0},
-            "options": [cover_uuid],
-        })
+
+    def dangling(node, field):
+        return node["controlSettings"].get(field) and not node[field + "Transition"]
+
+    if not any(dangling(node, field) for node in stage_nodes[1:] for field in ("ok", "home")):
+        return
+
+    action_nodes.append({
+        "id": COVER_ACTION_ID,
+        "name": COVER_ACTION_ID,
+        "position": {"x": 0, "y": 0},
+        "options": [cover_uuid],
+    })
 
     for node in stage_nodes[1:]:
-        controls = node["controlSettings"]
-        if controls.get("home") and not node["homeTransition"]:
-            node["homeTransition"] = {"actionNode": HOME_ACTION_ID, "optionIndex": 0}
-        if controls.get("ok") and not node["okTransition"]:
-            controls["ok"] = False
+        for field in ("ok", "home"):
+            if dangling(node, field):
+                node[field + "Transition"] = {"actionNode": COVER_ACTION_ID, "optionIndex": 0}
 
 
 def to_studio_zip(pack_dir, output_zip, progress=None):
