@@ -194,3 +194,14 @@ QPlainTextEdit {
     color: #c0483c;
     font-size: 12px;
 }
+
+#feedRow {
+    background: #ffffff;
+    border: 1px solid #ebe5dc;
+    border-radius: 10px;
+}
+
+#feedAds {
+    color: #b0742a;
+    font-size: 12px;
+}

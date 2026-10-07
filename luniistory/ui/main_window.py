@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from luniistory import config, i18n, library, transfer
 from luniistory.i18n import _, _n
+from luniistory.ui.feed_dialog import FeedDirectoryDialog
 from luniistory.ui.store_dialog import StoreDialog
 from luniistory.ui.story_card import StoryCard
 from luniistory.ui.workers import (
@@ -164,12 +165,16 @@ class MainWindow(QMainWindow):
         add_store = QPushButton(_("Add a store"))
         add_store.clicked.connect(self._add_store)
 
+        browse_feeds = QPushButton(_("Browse feeds"))
+        browse_feeds.clicked.connect(self._browse_feeds)
+
         import_button = QPushButton(_("Import a file…"))
         import_button.clicked.connect(self._choose_archives)
 
         layout.addWidget(self.search, 1)
         layout.addWidget(self.age_combo)
         layout.addWidget(reload_button)
+        layout.addWidget(browse_feeds)
         layout.addWidget(add_store)
         layout.addWidget(import_button)
         return bar
@@ -457,6 +462,14 @@ class MainWindow(QMainWindow):
             return
         config.add_store(*answer)
         self.refresh_catalog()
+
+    def _browse_feeds(self):
+        known = {store["url"] for store in config.load_stores()}
+        added = FeedDirectoryDialog.ask(known, self)
+        for name, url in added:
+            config.add_store(name, url)
+        if added:
+            self.refresh_catalog()
 
     def _choose_archives(self):
         paths, _filter = QFileDialog.getOpenFileNames(

@@ -154,6 +154,11 @@ python -m luniistory store-add "My store" https://example.org/catalog.json
 Two community catalogs — Telmi Interactive and Litteratureaudio.com — are
 configured out of the box, so there is something to browse on first launch.
 
+*Browse feeds* opens a directory of some 170 children's podcast feeds, each one
+addable as a store in a click, with no address to track down. Entries that carry
+advertising say so, which is the sort of thing worth knowing before a story
+reaches a four-year-old.
+
 ## Devices
 
 | Device | Status |

@@ -6,7 +6,7 @@ import traceback
 import requests
 from PySide6.QtCore import QThread, Signal
 
-from luniistory import stores, transfer
+from luniistory import directory, stores, transfer
 from luniistory.i18n import _
 
 
@@ -174,3 +174,39 @@ class RemoveWorker(QThread):
         for short_uuid in self._short_uuids:
             device.remove_story(short_uuid)
         self.done.emit()
+
+
+class FeedDirectoryWorker(QThread):
+    """Downloads the published list of podcast feeds."""
+
+    loaded = Signal(object)
+    failed = Signal(str)
+
+    def run(self):
+        try:
+            self.loaded.emit(directory.fetch())
+        except Exception as error:
+            self.failed.emit(str(error))
+
+
+class FeedThumbnailWorker(QThread):
+    """Caches the directory's cover images, one feed at a time."""
+
+    ready = Signal(str, str)
+
+    def __init__(self, feeds, parent=None):
+        super().__init__(parent)
+        self._feeds = list(feeds)
+        self._stop = False
+
+    def stop(self):
+        self._stop = True
+
+    def run(self):
+        session = requests.Session()
+        for feed in self._feeds:
+            if self._stop:
+                return
+            path = stores.cached_thumbnail(feed, session=session)
+            if path:
+                self.ready.emit(feed.key, str(path))
