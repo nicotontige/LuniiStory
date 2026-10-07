@@ -177,8 +177,10 @@ class MainWindow(QMainWindow):
         self.device_status.setWordWrap(True)
 
         self.device_list = QListWidget()
-        self.device_list.setSelectionMode(QListWidget.ExtendedSelection)
-        self.device_list.itemSelectionChanged.connect(self._update_remove_button)
+        # Tick boxes rather than click-selection, to match the catalogue side
+        # and to survive the list being rebuilt after every transfer.
+        self.device_list.setSelectionMode(QListWidget.NoSelection)
+        self.device_list.itemChanged.connect(self._update_remove_button)
 
         self.remove_button = QPushButton(_("Remove from the Lunii"))
         self.remove_button.setObjectName("destructive")
@@ -352,21 +354,37 @@ class MainWindow(QMainWindow):
         device = self.current_device
         if not device:
             self.device_title.setText(_("On the Lunii"))
-            self.device_list.addItem(_("Plug a Lunii in to see what it holds."))
+            placeholder = QListWidgetItem(_("Plug a Lunii in to see what it holds."))
+            placeholder.setFlags(Qt.NoItemFlags)
+            self.device_list.addItem(placeholder)
             self._update_remove_button()
             return
         for story in device["stories"]:
             item = QListWidgetItem(f"{story['name']}" + ("  🌙" if story["night_mode"] else ""))
             item.setData(Qt.UserRole, story["short_uuid"])
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Unchecked)
             self.device_list.addItem(item)
         self.device_title.setText(_n(
             len(device["stories"]), "{count} story on the Lunii", "{count} stories on the Lunii"
         ))
         self._update_remove_button()
 
+    def _checked_device_stories(self):
+        return [
+            item.data(Qt.UserRole)
+            for item in (self.device_list.item(row) for row in range(self.device_list.count()))
+            if item.checkState() == Qt.Checked and item.data(Qt.UserRole)
+        ]
+
     def _update_remove_button(self):
         connected = self.current_device is not None
-        self.remove_button.setEnabled(bool(self.device_list.selectedItems()) and connected)
+        checked = self._checked_device_stories()
+        self.remove_button.setText(
+            _("Remove from the Lunii ({count})", count=len(checked)) if checked
+            else _("Remove from the Lunii")
+        )
+        self.remove_button.setEnabled(bool(checked) and connected)
         self.eject_button.setEnabled(connected)
 
     def _eject_device(self, confirm=False):
@@ -656,8 +674,7 @@ class MainWindow(QMainWindow):
         device = self.current_device
         if not device:
             return
-        short_uuids = [item.data(Qt.UserRole) for item in self.device_list.selectedItems()]
-        short_uuids = [value for value in short_uuids if value]
+        short_uuids = self._checked_device_stories()
         if not short_uuids:
             return
         confirmation = QMessageBox.question(

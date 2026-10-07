@@ -258,3 +258,24 @@ QToolButton#tabClose:hover {
     font-size: 13px;
     padding: 24px;
 }
+
+/* Check boxes inside a list are a view indicator, not a QCheckBox: styling the
+   view at all makes Qt stop drawing the default one, so it needs its own rule. */
+QListWidget::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #c7bfb3;
+    border-radius: 4px;
+    background: #ffffff;
+    margin-right: 4px;
+}
+
+QListWidget::indicator:checked {
+    background: #6b2fa8;
+    border-color: #6b2fa8;
+}
+
+QListWidget::indicator:disabled {
+    border-color: #e3ddd4;
+    background: #f2eee8;
+}
