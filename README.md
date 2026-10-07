@@ -1,274 +1,169 @@
+<div align="center">
+<img src=".github/assets/banner.png" width="100%">
+
 # luniiStory
 
-[![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
-[![Buy me a coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-ffdd00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/nicotontige)
+Put community stories on a Lunii, from Windows, macOS and Linux.
 
-Browse community story stores and send the stories to a **Lunii**, on Windows,
-macOS and Linux.
 
-The free stories the community publishes come as Telmi packs, a format a Lunii
-cannot read. luniiStory bridges the two: it fetches the store catalogs, converts
-the packs it downloads, and writes them to the device.
+[![Stars](https://img.shields.io/github/stars/nicotontige/LuniiStory?style=flat-square&color=FFB700)](https://github.com/nicotontige/LuniiStory/stargazers)
 
-## What it builds on
+[![Forks](https://img.shields.io/github/forks/nicotontige/LuniiStory?style=flat-square&color=FFB700)](https://github.com/nicotontige/LuniiStory/fork)
 
-One dependency is code. [Lunii.QT](https://github.com/o-daneel/Lunii.QT) is
-vendored as a git submodule under `vendor/Lunii.QT` and does everything on the
-device side: detection, ciphering, writing stories. `luniistory/lunii_api.py`
-only puts it on the import path — none of its source is copied, so upstream
-fixes come in with `git submodule update --remote`. It is also where this
-project's GPL-3 licence comes from.
+[![Downloads](https://img.shields.io/github/downloads/nicotontige/LuniiStory/total?style=flat-square&color=FFB700)](https://github.com/nicotontige/LuniiStory/releases)
 
-Everything else is written here: the store client, the converter, the interface.
+[![GitHub release](https://img.shields.io/github/v/release/nicotontige/LuniiStory?color=FFB700)](https://github.com/nicotontige/LuniiStory/releases)
 
-## How the conversion works
+[![License](https://img.shields.io/github/license/nicotontige/LuniiStory?color=FFB700)](LICENSE)
 
-Store packs use the Telmi format — `metadata.json`, `nodes.json`, `title.mp3`,
-`audios/`, `images/`. That format is a STUdio pack with its first stage node,
-the cover, folded away: the node's UUID and media become the metadata and
-`title.mp3`, its transition becomes `startAction`, and stages, actions and media
-are renumbered `s0`, `a0`, `0.mp3`.
 
-luniiStory walks that path backwards:
+---
 
-```
-Telmi pack                      STUdio archive
-  metadata.json  ──┐
-  nodes.json     ──┼──────────▶  story.json   (cover node rebuilt,
-  title.png      ──┤                           stages given back their UUIDs)
-  title.mp3      ──┘
-  images/*.png   ───────────────▶ assets/XXXXXXXX.png
-  audios/*.mp3   ───────────────▶ assets/XXXXXXXX.mp3
-  cover.png      ───────────────▶ thumbnail.png
-```
+<a href="https://buymeacoffee.com/nicotontige" target="_blank" title="Buy me a coffee">
+  <img src="https://img.shields.io/badge/buy%20me%20a%20coffee-ffdd00?style=for-the-badge&logo=buymeacoffee&logoColor=black" alt="Buy me a coffee badge" style="height: 40px;">
+</a>
 
-Lunii.QT then takes over: it generates the `ri`, `si`, `li` and `ni` index files,
-turns the images into 320×240 RLE4 bitmaps, ciphers whatever the device
-generation requires, and updates `.pi`.
+---
 
-The conversion is deterministic: the same pack always yields the same archive,
-and stage identifiers are derived from the story UUID.
+## Features
 
-## Running it
 
-Clone, then launch — the script creates the virtual environment, fetches the
-submodule and installs the dependencies on its first run:
+<center>
 
-```bash
-git clone --recurse-submodules https://github.com/nicotontige/luniiStory.git
-cd luniiStory
-./run.sh           # Windows: run.bat
-```
+Browse community story catalogs and transfer in one click <br/>
+A directory of 170+ children's podcast feeds, no address to hunt for <br/>
+Your Lunii on the left, everything transferable on the right <br/>
+Add any catalog or RSS feed as a source of your own <br/>
+Filter by the age a story is meant for, search across every source <br/>
+Podcast episodes wrapped into a real pack, cover art and spoken title included <br/>
+Nothing else to install: no FFMPEG, no Python, no toolchain <br/>
+Eject the device so a transfer is never cut short <br/>
+English and French <br/>
+Works with Lunii v1, v2 and v3 <br/>
+No account, no tracking, no ads <br/>
 
-Pick the stories you want, plug the Lunii in, hit *Transfer selection*. Stories
-already on the device are flagged as such, and a file dropped onto the window is
-imported straight away.
+</center>
 
-Arguments are passed through, so `./run.sh list` runs the command line instead
-of opening the window.
 
-**Nothing else to install.** The Lunii only plays mono 44.1 kHz MP3, and plenty
-of what the catalogs publish is stereo — podcast episodes always, story packs
-often enough. Rather than pull in an 80 MB FFMPEG binary to downmix a track,
-luniiStory decodes through miniaudio and re-encodes through LAME: half a
-megabyte of ordinary wheels, and about eight seconds for a 300-track pack.
-Audio that already fits is passed through untouched. FFMPEG is still used if it
-happens to be installed, for the formats those two do not cover.
+---
 
-### Without the launcher
+## Screenshots
 
-```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python -m luniistory
-```
+| ![The two panels](.github/assets/01-main.png) | ![Picking stories](.github/assets/02-selection.png) | ![The feed directory](.github/assets/03-feeds.png) |
+|---|---|---|
 
-`pip install -e .` additionally puts a `luniistory` command on the path.
 
-### As a standalone application
+---
 
-Grab the archive for your platform from the
-[releases](../../releases) — nothing to install, Python, Qt and the engine are
-inside. The builds are unsigned, so macOS quarantines them on first launch:
+## Download
+
+
+[<img src="https://img.shields.io/badge/Get%20it%20on-GitHub-26224C?style=for-the-badge&logo=github&logoColor=white" alt="Get it on GitHub" height="60">](https://github.com/nicotontige/LuniiStory/releases/latest)
+
+Nothing to install: Python, Qt and the Lunii engine are inside. The builds are
+unsigned, so macOS quarantines them on first launch:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/luniiStory.app
 ```
 
-Building one yourself takes a single command:
 
-```bash
-.venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pyinstaller luniistory.spec
-```
+---
 
-It produces `dist/luniistory/` on Windows and Linux, and a double-clickable
-`dist/luniiStory.app` on macOS, around 100 MB.
+## Contributors
 
-## Usage
+Special thanks to all contributors for their time and effort.
 
-Command line:
+<a href="https://github.com/nicotontige/LuniiStory/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=nicotontige/LuniiStory" alt="Contributors"/>
+</a>
 
-```bash
-python -m luniistory list --age 5              # filtered catalog
-python -m luniistory list sorcier              # search
-python -m luniistory devices                   # connected Lunii
-python -m luniistory info                      # what is on the device
-python -m luniistory install halloween         # download, convert, transfer
-python -m luniistory import story.zip          # local archive (Telmi, STUdio, .pk)
-python -m luniistory rm D8BD184F               # remove a story
-python -m luniistory eject                     # unmount before unplugging
-python -m luniistory convert pack.zip out.zip  # conversion only, no device needed
-python -m luniistory cache --clear             # drop downloaded packs
-```
 
-### Language
+---
 
-The application ships in **English and French**. It starts in your system
-language when that language is available, and in English otherwise. The picker
-in the window header switches at any time and remembers the choice.
+## Contribute
 
-```bash
-python -m luniistory lang            # list the languages, * marks the current one
-python -m luniistory lang fr         # switch and remember
-python -m luniistory --lang fr list  # just for this run
-```
+Contributions are always welcome. Please read the
+[contributing guidelines](CONTRIBUTING.md) before contributing — they also cover
+running the application from source, how the conversion works, and how a release
+is cut.
 
-`LUNIISTORY_LANG` overrides both.
+---
 
-Source strings are English, so English needs no catalog and an untranslated
-string falls back to its English text rather than to a key. Adding a language
-means dropping a `luniistory/locales/<code>.json` next to `fr.json`:
+## F.A.Q
 
-```bash
-python tools/extract_strings.py          # report what each catalog is missing
-python tools/extract_strings.py --sync   # fill the gaps with the English text
-```
+**Why can a story not be exported back off my Lunii?**
+Exporting official stories is disabled upstream in Lunii.QT, and that limit is
+kept here. luniiStory only writes to the device.
 
-The test suite fails if a catalog drifts from the source strings, or if a
-translation drops or invents a `{placeholder}`.
+**My Lunii is plugged in and nothing shows up.**
+Switch the device on: unplugged from power it enumerates over USB and mounts
+nothing. If it is already on, the cable may be charge-only. The application says
+which of the two it is.
 
-### Adding a store
+**Why is a podcast episode marked differently?**
+It is a bare MP3, with no cover and no spoken title, so a pack is built around
+it before the transfer: the feed artwork becomes the image the Lunii shows, and
+the title is spoken by the host's own voice.
 
-A store is any URL serving a Telmi JSON catalog or a podcast RSS feed:
+**Which devices work?**
+Lunii v1 and v2 are fully supported. v3 works for transfers; exporting from it
+needs device keys in `~/.lunii-qt/<serial>.keys`. Flam is not exposed.
 
-```bash
-python -m luniistory store-add "My store" https://example.org/catalog.json
-```
 
-Two community catalogs — Telmi Interactive and Litteratureaudio.com — are
-configured out of the box, so there is something to browse on first launch.
+---
 
-*Browse feeds* opens a directory of some 170 children's podcast feeds as a wall
-of covers — artwork is how these are recognised — each one addable as a store in
-a click, with no address to track down. Feeds you already follow are framed in
-green and can be dropped again from the same panel. Entries that carry
-advertising say so, which is the sort of thing worth knowing before a story
-reaches a four-year-old.
+## Credits
 
-An episode is a bare MP3, so a pack is built around it before the transfer: the
-feed's artwork becomes the cover the Lunii shows, and the title is spoken by the
-host's own voice — `say` on macOS, `espeak-ng` on Linux, SAPI on Windows. With
-no voice available the cover stays silent rather than the transfer failing.
 
-## Devices
+[Lunii.QT](https://github.com/o-daneel/Lunii.QT) — the engine that talks to the
+device, vendored as a submodule. Everything on the hardware side is its work.
 
-| Device | Status |
-| --- | --- |
-| Lunii v1, v2 | supported |
-| Lunii v3 | needs the device keys in `~/.lunii-qt/<serial>.keys` |
-| Flam | not exposed yet |
+[Telmi](https://github.com/DantSu/Telmi-Sync) — the pack format the community
+publishes in, the catalogs shipped by default, and the feed directory.
 
-These limits are Lunii.QT's; its [README](vendor/Lunii.QT/README.md) documents
-the v3 key procedure.
+[STUdio](https://github.com/DantSu/studio) — the story format a Lunii reads,
+and what every pack is converted into on the way through.
 
-## Where things live
 
-| Path | Contents |
-| --- | --- |
-| `~/.luniistory/stores.json` | configured stores |
-| `~/.luniistory/library/` | downloaded packs |
-| `~/.luniistory/cache/` | thumbnails |
-| `~/.lunii-qt/` | Lunii.QT third-party story database |
-
-Set `LUNIISTORY_HOME` to move the first one.
-
-## Development
-
-`make` runs locally what CI runs on push, creating the virtual environment on
-first call:
-
-| Command | What it does |
-| --- | --- |
-| `make` | tests, pyflakes, workflow lint, translation catalogs |
-| `make run` | launches the app from the source tree |
-| `make build` | packages for this machine, then smoke-tests the result |
-| `make run-dist` | launches the packaged app |
-| `make rehearse` | builds all four platforms in CI, publishing nothing |
-| `make release` | tags the current version, refusing a dirty tree |
-| `make clean` | drops `build/`, `dist/` and the caches |
-
-While working on the code, `make run` is the one to use — it skips packaging and
-starts in a second. `make run ARGS="list --age 5"` runs a command instead of
-opening the window. `make run-dist` is for checking the bundle users download,
-after `make build`.
-
-The tests cover the Telmi → STUdio conversion, its round trip through the
-Lunii.QT engine, a full install onto a Lunii v2 simulated on disk — no hardware
-needed to check that a story is written correctly — and the translation
-catalogs.
-
-`make build` does not stop at a successful build: it runs the packaged binary
-and checks that the translations shipped, that the config is reachable and that
-the Lunii engine loads. A build that completes can still produce a bundle that
-dies on launch, and that is the failure worth catching before a tag.
-
-### Before tagging
-
-```bash
-make            # everything checkable without pushing
-make build      # your own platform, end to end
-make rehearse   # the three others, in CI, publishing nothing
-```
-
-Only your own platform can be built locally — PyInstaller does not cross
-compile — so `make rehearse` is the step that covers the rest. `actionlint`
-checks the workflows if it is installed (`brew install actionlint`); keep it
-current, since its list of runner labels is baked in at build time and goes
-stale as GitHub retires images.
-
-## Releases
-
-Two workflows run in GitHub Actions, with every action pinned to a commit SHA:
-
-- `tests.yml` runs the suite on Linux, macOS and Windows for every push and
-  pull request;
-- `release.yml` fires on a `v*` tag — it refuses to go on unless the tag matches
-  `__version__`, runs the tests again, builds for Linux, Windows and both macOS
-  architectures, then publishes the archives with their `SHA256SUMS` and a
-  generated changelog.
-
-Cutting a release is three commands, the version living in
-`luniistory/__init__.py` alone:
-
-```bash
-sed -i '' 's/0.1.0/0.2.0/' luniistory/__init__.py
-git commit -am "version 0.2.0"
-git tag v0.2.0 && git push --follow-tags
-```
-
-Running the workflow by hand from the Actions tab builds every platform without
-publishing anything, which is the way to rehearse a change to the recipe.
-
-## Support
-
-luniiStory is a spare-time project. If it saved you an evening of fiddling with
-story files, you can [buy me a coffee](https://buymeacoffee.com/nicotontige).
+---
 
 ## License
 
-GPL-3.0, inherited from Lunii.QT whose engine this project builds on.
 
-luniiStory distributes no stories of its own. It follows the public catalogs you
-point it at, and transfers to your own Lunii the stories their authors chose to
-make available.
+```unknown
+Copyright © 2026 nicotontige
+
+luniiStory is free software licensed under GPL v3.0. You may use, modify, and
+distribute this software freely, but must keep the source code open and publicly
+available, retain all copyright notices, disclose all changes made, and use the
+same GPL v3.0 license.
+
+The licence is inherited from Lunii.QT, whose engine this project builds on.
+```
+
+
+See the [GNU General Public License](LICENSE) for full details.
+
+---
+
+## Disclaimer
+
+
+```unknown
+luniiStory does not host, own, or distribute any story, audio file, or artwork.
+It follows the public catalogs you point it at, and transfers to your own device
+the stories their authors chose to make available. All trademarks, stories, audio
+files, and related content remain the property of their respective owners.
+
+Lunii is a trademark of its owner. This project is not affiliated with, endorsed
+by, or supported by Lunii. It reads and writes a device you own, which is what
+interoperability means, and is provided for that purpose only.
+
+Users are solely responsible for ensuring that their use complies with local law
+and with the terms of the content they transfer.
+```
+
+---
+
+</div>

@@ -1,9 +1,10 @@
-"""Draws the application icon and writes it in every format we ship.
+"""Draws the application artwork: the icon in every format we ship, and the
+banner the README opens with.
 
     python tools/make_icon.py
 
-Run it when the artwork changes; the results are committed, so a build never
-depends on the fonts installed on the machine doing the building.
+Run it when the artwork changes; the results are committed, so neither a build
+nor the README depends on the fonts installed on the machine doing the drawing.
 """
 
 import subprocess
@@ -15,6 +16,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
 ICONS_DIR = ROOT / "luniistory" / "ui" / "icons"
+ASSETS_DIR = ROOT / ".github" / "assets"
 
 # Straight from lunii.com: the amber their own icons are drawn in, over the
 # indigo of their footer.
@@ -25,6 +27,9 @@ SIZE = 1024
 CORNER = 0.225          # share of the side, close to the macOS squircle
 MONOGRAM = "LS"
 TRACKING = 0.05         # share of the side; Heavy sets L and S touching
+
+BANNER = (1200, 400)
+TAGLINE = "Community stories on your Lunii, in a couple of clicks"
 
 # Geometric sans faces, in order of preference.
 FONT_CANDIDATES = [
@@ -107,9 +112,48 @@ def write_icns(image):
     return target
 
 
+def write_banner(image):
+    """Header image for the README: the mark, the name and what it does."""
+    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    target = ASSETS_DIR / "banner.png"
+
+    banner = Image.new("RGB", BANNER, INDIGO)
+    draw = ImageDraw.Draw(banner)
+
+    mark = 208
+    left, top = 108, (BANNER[1] - mark) // 2
+    banner.paste(image.resize((mark, mark), Image.LANCZOS), (left, top), image.resize((mark, mark), Image.LANCZOS))
+
+    text_left = left + mark + 56
+    room = BANNER[0] - text_left - 108
+    name_font = load_font(104)
+
+    # Shrink the tagline until it fits rather than letting it run off the edge.
+    size = 34
+    while size > 14:
+        tagline_font = load_font(size)
+        if draw.textlength(TAGLINE, font=tagline_font) <= room:
+            break
+        size -= 1
+
+    name_box = draw.textbbox((0, 0), "luniiStory", font=name_font)
+    tagline_box = draw.textbbox((0, 0), TAGLINE, font=tagline_font)
+    block = (name_box[3] - name_box[1]) + 26 + (tagline_box[3] - tagline_box[1])
+    y = (BANNER[1] - block) // 2
+
+    draw.text((text_left - name_box[0], y - name_box[1]), "luniiStory", font=name_font, fill="#FFFFFF")
+    draw.text(
+        (text_left - tagline_box[0], y + (name_box[3] - name_box[1]) + 26 - tagline_box[1]),
+        TAGLINE, font=tagline_font, fill=AMBER,
+    )
+
+    banner.save(target)
+    return target
+
+
 def main():
     image = draw_icon()
-    for writer in (write_png, write_ico, write_icns):
+    for writer in (write_png, write_ico, write_icns, write_banner):
         written = writer(image)
         if written:
             print(f"  {written.relative_to(ROOT)}  {written.stat().st_size // 1024} KB")
