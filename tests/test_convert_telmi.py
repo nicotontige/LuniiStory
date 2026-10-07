@@ -30,11 +30,7 @@ def test_stages_and_actions_are_preserved(telmi_pack, tmp_path):
     story, _ = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
 
     assert len(story["stageNodes"]) == 4  # cover + s0, s1, s2
-    # a0, a1, a2 from the pack, plus the home target the converter adds for s2,
-    # whose home button is lit with nothing behind it.
-    assert {action["id"] for action in story["actionNodes"]} == {
-        "a0", "a1", "a2", telmi.COVER_ACTION_ID,
-    }
+    assert {action["id"] for action in story["actionNodes"]} == {"a0", "a1", "a2"}
 
     by_name = {node["name"]: node for node in story["stageNodes"]}
     assert by_name["s0"]["okTransition"] == {"actionNode": "a1", "optionIndex": 0}
@@ -75,19 +71,6 @@ def test_zip_entry_point_finds_the_pack_root(telmi_zip, tmp_path):
     )
     assert story["stageNodes"][0]["uuid"] == STORY_UUID
     assert not (tmp_path / "work").exists()  # the working folder is cleaned up
-
-
-def test_dangling_transition_is_dropped(telmi_pack, tmp_path):
-    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
-    nodes["stages"]["s1"]["ok"] = {"action": "a99", "index": 0}
-    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
-
-    story, _ = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
-    by_name = {node["name"]: node for node in story["stageNodes"]}
-    # The unknown action goes, and since the button stays lit it falls back to
-    # the cover rather than pointing at something that is not there.
-    assert "a99" not in {action["id"] for action in story["actionNodes"]}
-    assert by_name["s1"]["okTransition"]["actionNode"] == telmi.COVER_ACTION_ID
 
 
 def test_missing_title_audio_is_reported(telmi_pack, tmp_path):
@@ -135,56 +118,6 @@ def test_stereo_audio_is_folded_to_mono(telmi_pack, tmp_path):
         assert tracks
         for name in tracks:
             assert audio.is_lunii_ready(handle.read(name), name)
-
-
-def test_an_enabled_button_always_leads_somewhere(telmi_pack, tmp_path):
-    """Telmi OS answers dead button presses itself; a Lunii follows the
-    transition it was promised and stops with an SD card error."""
-    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
-    nodes["stages"]["s2"]["control"] = {"wheel": False, "ok": True, "home": True,
-                                        "pause": False, "autoplay": False}
-    nodes["stages"]["s2"]["ok"] = None      # OK lit, with nowhere to go
-    nodes["stages"]["s2"]["home"] = None    # same for home
-    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
-
-    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
-    by_name = {node["name"]: node for node in story["stageNodes"]}
-    s2 = by_name["s2"]
-
-    # Both buttons lead to the cover, which is the way out of a pack on the
-    # device: Telmi writes "ok: null" on the stages that end a story.
-    exit_action = next(a for a in story["actionNodes"] if a["id"] == telmi.COVER_ACTION_ID)
-    assert exit_action["options"] == [story["stageNodes"][0]["uuid"]]
-    for field in ("ok", "home"):
-        assert s2["controlSettings"][field] is True
-        assert s2[field + "Transition"] == {"actionNode": telmi.COVER_ACTION_ID, "optionIndex": 0}
-
-
-def test_only_one_exit_is_added(telmi_pack, tmp_path):
-    """A pack that already leads back to the cover keeps its own route."""
-    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
-    cover = story["stageNodes"][0]["uuid"]
-
-    leading_back = [action for action in story["actionNodes"] if cover in action["options"]]
-    assert len(leading_back) == 1
-
-
-def test_a_story_ending_leaves_the_pack(telmi_pack, tmp_path):
-    """Telmi marks an ending with "ok: null" while leaving the button lit.
-
-    Turning the button off there would strand a child on the last stage of the
-    story with nothing to press.
-    """
-    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
-    nodes["stages"]["s2"]["ok"] = None
-    nodes["stages"]["s2"]["control"] = {"wheel": False, "ok": True, "home": True,
-                                        "pause": False, "autoplay": True}
-    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
-
-    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
-    ending = next(node for node in story["stageNodes"] if node["name"] == "s2")
-    assert ending["controlSettings"]["ok"] is True
-    assert ending["okTransition"]["actionNode"] == telmi.COVER_ACTION_ID
 
 
 def test_the_indexitem_spelling_is_recognised(telmi_pack, tmp_path):
@@ -317,30 +250,12 @@ def test_a_single_option_lookup_is_left_alone(telmi_pack, tmp_path):
     assert next(n for n in story["stageNodes"] if n["name"] == "s0")["okTransition"]["optionIndex"] == 0
 
 
-def test_home_always_has_a_way_to_the_menu(telmi_pack, tmp_path):
-    """Some packs route home into a prompt that loops back to the first stage:
-    Telmi OS takes you out, so the graph never needs to. A Lunii does not."""
-    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
-    for name, stage in nodes["stages"].items():
-        stage["ok"] = {"action": "a0", "index": 0}      # nothing dangles
-        stage["home"] = {"action": "a0", "index": 0}    # home never exits
-        stage["control"] = {"wheel": False, "ok": True, "home": True,
-                            "pause": False, "autoplay": False}
-    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
-
-    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
-    cover = story["stageNodes"][0]["uuid"]
-    assert any(cover in action["options"] for action in story["actionNodes"])
-    for node in story["stageNodes"][1:]:
-        assert node["homeTransition"]["actionNode"] == telmi.COVER_ACTION_ID
 
 
-def test_an_ending_leaves_on_its_own(telmi_pack, tmp_path):
-    """A stage that ends the pack is a closing line, not a question.
-
-    Waiting for OK there means pressing it twice to leave: once to confirm,
-    once to dismiss the confirmation.
-    """
+def test_an_ending_loops_back_and_dims_its_button(telmi_pack, tmp_path):
+    """Telmi writes "ok: null" to end a pack. Lit with nothing behind it, the
+    device follows a transition that is not there and stops with an SD card
+    error; a genuine Lunii story never has a lit OK without one."""
     nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
     # s0 is reached from a0, which offers it alone, so it is not browsable.
     nodes["stages"]["s0"]["ok"] = None
@@ -349,25 +264,47 @@ def test_an_ending_leaves_on_its_own(telmi_pack, tmp_path):
     (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
 
     story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
-    ending = next(node for node in story["stageNodes"] if node["name"] == "s0")
-    assert ending["okTransition"]["actionNode"] == telmi.COVER_ACTION_ID
+    ending = next(n for n in story["stageNodes"] if n["name"] == "s0")
+
+    assert ending["controlSettings"]["ok"] is False
     assert ending["controlSettings"]["autoplay"] is True
+    assert ending["okTransition"]["actionNode"] == telmi.RESTART_ACTION_ID
 
 
-def test_a_browsable_ending_stays_browsable(telmi_pack, tmp_path):
-    """A stage can be both an ending and one of several options.
+def test_nothing_ever_points_at_the_cover(telmi_pack, tmp_path):
+    """A pack does not walk back to its own cover to end.
 
-    It must stay turnable: the child browses to it and presses OK, which leaves
-    the story. Letting it autoplay would carry them out before they chose it.
+    Doing so leaves the device inside the pack, looking at its first page, with
+    the menu wheel dead until it is switched off and on again.
     """
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    cover = story["stageNodes"][0]["uuid"]
+    assert not any(cover in action["options"] for action in story["actionNodes"])
+
+
+def test_home_becomes_the_exit_when_it_leads_nowhere(telmi_pack, tmp_path):
+    """A lit home button with nothing behind it is the firmware's own way out —
+    a genuine Lunii story has four such nodes."""
     nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
-    nodes["stages"]["s2"]["ok"] = None                      # s2 is an option of a1
-    nodes["stages"]["s2"]["control"] = {"wheel": False, "ok": True, "home": True,
-                                        "pause": False, "autoplay": False}
+    for stage in nodes["stages"].values():
+        stage["home"] = {"action": "a0", "index": 0}    # home loops, never exits
+        stage["control"]["home"] = True
     (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
 
     story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
-    node = next(n for n in story["stageNodes"] if n["name"] == "s2")
-    assert node["controlSettings"]["wheel"] is True
-    assert node["controlSettings"]["autoplay"] is False
-    assert node["okTransition"]["actionNode"] == telmi.COVER_ACTION_ID
+    for node in story["stageNodes"][1:]:
+        assert node["controlSettings"]["home"] is True
+        assert node["homeTransition"] is None
+
+
+def test_a_home_that_can_already_escape_is_left_alone(telmi_pack, tmp_path):
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    nodes["stages"]["s2"]["home"] = None                 # s2 is itself an exit
+    nodes["stages"]["s2"]["control"]["home"] = True
+    nodes["stages"]["s1"]["home"] = {"action": "a2", "index": 0}   # a2 -> s2
+    nodes["stages"]["s1"]["control"]["home"] = True
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    s1 = next(n for n in story["stageNodes"] if n["name"] == "s1")
+    assert s1["homeTransition"] is not None              # it can reach the exit

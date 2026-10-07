@@ -229,9 +229,11 @@ def build_story_json(metadata, nodes, pack_dir):
             if node[field] and node[field]["actionNode"] not in known_actions:
                 node[field] = None
 
-    _settle_controls(stage_nodes, action_nodes)
-    _ensure_a_way_out(stage_nodes, action_nodes)
+    # Order matters: the wheel pass marks which stages are browsable options,
+    # and settling an ending must leave those alone.
     _enable_choice_wheel(stage_nodes, action_nodes)
+    action_nodes.extend(_settle_controls(stage_nodes, _start_uuid(stage_nodes, action_nodes)))
+    _ensure_a_way_out(stage_nodes, action_nodes)
     for node in stage_nodes:
         for field in ("okTransition", "homeTransition"):
             if node[field]:
@@ -254,35 +256,64 @@ def build_story_json(metadata, nodes, pack_dir):
     return story_json, assets
 
 
-COVER_ACTION_ID = "luniistory-cover"
+RESTART_ACTION_ID = "luniistory-restart"
 INVENTORY_MARKER = "_fromInventory"
 RANDOM_OPTION = -1   # STUdio's "pick one at random"
 
 
 def _ensure_a_way_out(stage_nodes, action_nodes):
-    """Makes sure the home button can leave the story.
+    """Leaves home without a destination where it cannot get you out.
+
+    A pack does not walk back to its own cover to end. On the device, a lit
+    home button with nothing behind it is the firmware's own exit to the story
+    menu — a genuine Lunii story has four such nodes, and none of its
+    transitions points at its cover. Walking to the cover instead leaves the
+    device inside the pack, looking at its first page, with the menu wheel dead
+    until it is switched off and on again.
 
     Telmi routes home into a prompt of its own, and some packs leave that
-    prompt looping back to the first stage: on Telmi OS the system takes you
-    out, so the graph never needs to. A Lunii has no such escape — pressing
-    home restarts the story instead of returning to the menu.
-
-    Only packs with no route to the cover at all are touched, so a pack that
-    asks "are you sure?" and then quits properly keeps its prompt.
+    prompt looping back to the first stage because Telmi OS takes you out
+    itself. Where following home can never reach an exit, home becomes one.
     """
-    cover_uuid = stage_nodes[0]["uuid"]
-    if any(cover_uuid in action["options"] for action in action_nodes):
-        return
+    options = {action["id"]: action["options"] for action in action_nodes}
+    escapes = _stages_that_escape(stage_nodes, options)
 
-    action_nodes.append({
-        "id": COVER_ACTION_ID,
-        "name": COVER_ACTION_ID,
-        "position": {"x": 0, "y": 0},
-        "options": [cover_uuid],
-    })
     for node in stage_nodes[1:]:
-        if node["controlSettings"].get("home"):
-            node["homeTransition"] = {"actionNode": COVER_ACTION_ID, "optionIndex": 0}
+        if not node["controlSettings"].get("home"):
+            continue
+        if node["uuid"] not in escapes:
+            node["homeTransition"] = None
+
+
+def _stages_that_escape(stage_nodes, options):
+    """Stages from which pressing home, repeatedly, eventually leaves the pack.
+
+    A stage escapes when its home button is lit and leads nowhere — that is the
+    exit — or when every road home from it reaches such a stage.
+    """
+    escapes = {
+        node["uuid"] for node in stage_nodes[1:]
+        if node["controlSettings"].get("home") and not node["homeTransition"]
+    }
+
+    by_uuid = {node["uuid"]: node for node in stage_nodes}
+    changed = True
+    while changed:
+        changed = False
+        for node in stage_nodes[1:]:
+            if node["uuid"] in escapes:
+                continue
+            move = node["homeTransition"]
+            if not move:
+                continue
+            targets = options.get(move["actionNode"], ())
+            # Reaching one stage that escapes is enough: the child presses home
+            # again from there.
+            if any(target in escapes and by_uuid.get(target) is not None for target in targets):
+                escapes.add(node["uuid"])
+                changed = True
+
+    return escapes
 
 
 def _enable_choice_wheel(stage_nodes, action_nodes):
@@ -314,48 +345,53 @@ def _enable_choice_wheel(stage_nodes, action_nodes):
         controls["autoplay"] = False
 
 
-def _settle_controls(stage_nodes, action_nodes):
-    """Makes every enabled button lead back to the cover.
+def _start_uuid(stage_nodes, action_nodes):
+    """Where the story begins: the first option of the cover's own transition."""
+    move = stage_nodes[0]["okTransition"]
+    if move:
+        for action in action_nodes:
+            if action["id"] == move["actionNode"] and action["options"]:
+                return action["options"][0]
+    return stage_nodes[1]["uuid"]
 
-    Telmi packs leave buttons switched on with nothing behind them. A Lunii
-    follows the transition it was promised, reads an address that is not there
-    and stops with an SD card error.
 
-    Both buttons are sent to the cover node, because on the device that *is*
-    the way out: a pack's first node is its entry in the story menu. It suits
-    either case. Telmi writes ``ok: null`` on the stages that end a pack — the
-    six endings of "La maison de la sorcière" use it, and so does the "yes,
-    quit" branch of its back prompt — so OK on an ending now leaves the story
-    instead of doing nothing. And home means "take me out of here" wherever it
-    is pressed.
+def _settle_controls(stage_nodes, start_uuid):
+    """Gives an ending somewhere to go, and takes the OK button off it.
+
+    Telmi writes ``ok: null`` on the stages that end a pack — the six endings
+    of "La maison de la sorcière" use it, and so does the "yes, quit" branch of
+    its back prompt. Left lit with nothing behind it, the device follows a
+    transition that is not there and stops with an SD card error; a genuine
+    Lunii story never has a lit OK without one.
+
+    So the button goes out and the stage loops back to the start, which is what
+    a Lunii story does when it ends — the child presses home to leave, and home
+    is an exit everywhere by then.
     """
-    cover_uuid = stage_nodes[0]["uuid"]
-
-    def dangling(node, field):
-        return node["controlSettings"].get(field) and not node[field + "Transition"]
-
-    if not any(dangling(node, field) for node in stage_nodes[1:] for field in ("ok", "home")):
-        return
+    action_nodes = []
+    endings = [
+        node for node in stage_nodes[1:]
+        if node["controlSettings"].get("ok") and not node["okTransition"]
+    ]
+    if not endings:
+        return action_nodes
 
     action_nodes.append({
-        "id": COVER_ACTION_ID,
-        "name": COVER_ACTION_ID,
+        "id": RESTART_ACTION_ID,
+        "name": RESTART_ACTION_ID,
         "position": {"x": 0, "y": 0},
-        "options": [cover_uuid],
+        "options": [start_uuid],
     })
+    for node in endings:
+        node["okTransition"] = {"actionNode": RESTART_ACTION_ID, "optionIndex": 0}
+        if node["controlSettings"].get("wheel"):
+            # Also one of several options: the child has to be able to turn to
+            # it and press OK, so the button stays lit and nothing autoplays.
+            continue
+        node["controlSettings"]["ok"] = False
+        node["controlSettings"]["autoplay"] = True
 
-    for node in stage_nodes[1:]:
-        for field in ("ok", "home"):
-            if not dangling(node, field):
-                continue
-            node[field + "Transition"] = {"actionNode": COVER_ACTION_ID, "optionIndex": 0}
-            if field == "ok":
-                # Telmi writes "ok: null" on a stage that ends the pack, and
-                # such a stage is a closing line, not a question. Leaving it
-                # waiting for OK means pressing it twice to get out: once to
-                # confirm, once to dismiss the confirmation. It leaves on its
-                # own when the audio finishes, and OK still skips ahead.
-                node["controlSettings"]["autoplay"] = True
+    return action_nodes
 
 
 def to_studio_zip(pack_dir, output_zip, progress=None):
