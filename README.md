@@ -67,10 +67,12 @@ imported straight away.
 Arguments are passed through, so `./run.sh list` runs the command line instead
 of opening the window.
 
-**FFMPEG is optional.** Story packs from the catalogs already ship mono 44.1 kHz
-MP3, exactly what the Lunii expects, so the common case needs nothing. It is
-required for podcast episodes, which ship in stereo that only FFMPEG can fold
-down to the mono the device plays.
+**Nothing else to install.** The Lunii only plays mono 44.1 kHz MP3, and podcast
+episodes ship joint stereo, so something has to convert them. Rather than pull
+in an 80 MB FFMPEG binary to downmix a track, luniiStory decodes through
+miniaudio and re-encodes through LAME — half a megabyte of ordinary wheels.
+FFMPEG is still used if it happens to be installed, for the formats those two
+do not cover.
 
 ### Without the launcher
 
@@ -164,8 +166,6 @@ An episode is a bare MP3, so a pack is built around it before the transfer: the
 feed's artwork becomes the cover the Lunii shows, and the title is spoken by the
 host's own voice — `say` on macOS, `espeak-ng` on Linux, SAPI on Windows. With
 no voice available the cover stays silent rather than the transfer failing.
-Either way this path needs FFMPEG, since podcasts are stereo and the device is
-not.
 
 ## Devices
 

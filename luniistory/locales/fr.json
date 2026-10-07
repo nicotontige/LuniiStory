@@ -59,7 +59,6 @@
   "Downloading “{title}”…": "Téléchargement de « {title} »…",
   "The Lunii refused to import {name}": "Import refusé par la Lunii pour {name}",
   "Downloading": "Téléchargement",
-  "“{title}” is a podcast episode in stereo, and the Lunii only plays mono. Converting it needs FFMPEG, which is not installed.": "« {title} » est un épisode de podcast en stéréo, or la Lunii ne lit que du mono. La conversion demande FFMPEG, qui n'est pas installé.",
   "Building a pack around the episode…": "Fabrication d'un pack autour de l'épisode…",
   "Transferring": "Transfert",
   "Already added": "Déjà ajouté",

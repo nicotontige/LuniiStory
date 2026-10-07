@@ -11,7 +11,7 @@ import zipfile
 from pathlib import Path
 from uuid import UUID, uuid5
 
-from luniistory.convert import speech
+from luniistory.convert import audio, speech
 from luniistory.convert.telmi import COVER_CONTROLS, TelmiFormatError, _asset_name
 from luniistory.i18n import _
 
@@ -27,18 +27,10 @@ def _is_mp3(data):
 
 
 def spoken_or_silent(title):
-    """The cover audio: a voice when one can be used, silence otherwise.
-
-    Every host voice renders to WAV, and only FFMPEG turns that into the MP3 the
-    Lunii accepts. Without it a spoken title would make the whole pack
-    unimportable, so the cover goes silent instead of the transfer failing.
-    """
-    from luniistory.lunii_api import which_ffmpeg
-
-    if which_ffmpeg():
-        spoken = speech.speak(title)
-        if spoken:
-            return spoken
+    """The cover audio: the host's voice when there is one, silence otherwise."""
+    spoken = speech.speak(title)
+    if spoken:
+        return audio.to_lunii_mp3(spoken, "title.wav")
     return speech.silence()
 
 
@@ -47,28 +39,31 @@ def story_uuid(seed):
     return uuid5(NAMESPACE, f"luniistory:audio:{seed}")
 
 
-def build(title, audio, cover, output_zip, description="", spoken_title=None, uuid=None):
+def build(title, audio_file, cover, output_zip, description="", spoken_title=None, uuid=None):
     """Writes the STUdio archive for one audio file.
 
-    ``audio`` and ``cover`` are paths. ``spoken_title`` is the audio announcing
+    ``audio_file`` and ``cover`` are paths. ``spoken_title`` is the audio announcing
     the story; when it is ``None`` a voice is attempted, and failing that the
     cover stays silent rather than blocking the transfer.
     """
-    audio = Path(audio)
-    if not audio.is_file():
-        raise TelmiFormatError(_("Audio file missing: {path}", path=audio))
+    audio_path = Path(audio_file)
+    if not audio_path.is_file():
+        raise TelmiFormatError(_("Audio file missing: {path}", path=audio_path))
 
     uuid = uuid or story_uuid(title)
     episode_uuid = str(uuid5(uuid, "episode"))
 
     if spoken_title is None:
         spoken_title = spoken_or_silent(title)
-    title_extension = ".mp3" if _is_mp3(spoken_title) else ".wav"
+    spoken_title = audio.to_lunii_mp3(spoken_title, "title.mp3" if _is_mp3(spoken_title) else "title.wav")
+
+    # Everything leaves here as Lunii-ready MP3, so the import needs no FFMPEG.
+    episode_audio = audio.to_lunii_mp3(audio_path.read_bytes(), audio_path.name)
 
     taken = set()
     cover_name = _asset_name("cover", ".png", taken) if cover else None
-    title_name = _asset_name("title", title_extension, taken)
-    episode_name = _asset_name("episode", audio.suffix.lower() or ".mp3", taken)
+    title_name = _asset_name("title", ".mp3", taken)
+    episode_name = _asset_name("episode", ".mp3", taken)
 
     story = {
         "format": "v1",
@@ -111,7 +106,7 @@ def build(title, audio, cover, output_zip, description="", spoken_title=None, uu
     with zipfile.ZipFile(output_zip, "w", zipfile.ZIP_STORED) as archive:
         archive.writestr("story.json", json.dumps(story, ensure_ascii=False))
         archive.writestr(f"assets/{title_name}", spoken_title)
-        archive.write(audio, f"assets/{episode_name}")
+        archive.writestr(f"assets/{episode_name}", episode_audio)
         if cover:
             archive.write(cover, f"assets/{cover_name}")
             archive.write(cover, "thumbnail.png")

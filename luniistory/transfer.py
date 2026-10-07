@@ -107,16 +107,6 @@ def install_story(device, story, on_log=None, on_progress=None, session=None):
     downloaded = library.download(story, on_progress=download_progress, session=session)
 
     if getattr(story, "is_audio", False):
-        # Podcasts ship joint stereo; the Lunii only plays mono MP3, and nothing
-        # but FFMPEG can make that conversion. Say so before the engine fails
-        # with a message about STUdio archives.
-        if not ffmpeg_available():
-            raise TransferError(_(
-                "“{title}” is a podcast episode in stereo, and the Lunii only "
-                "plays mono. Converting it needs FFMPEG, which is not installed.",
-                title=story.title,
-            ))
-
         # A bare episode is not a pack; wrap it in one before importing.
         if on_log:
             on_log(logging.INFO, _("Building a pack around the episode…"))
@@ -135,7 +125,7 @@ def _pack_episode(story, audio_path, session=None):
     cover = stores.cached_thumbnail(story, session=session)
     return audio_pack.build(
         title=story.title,
-        audio=audio_path,
+        audio_file=audio_path,
         cover=cover,
         output_zip=config.TMP_DIR / f"{story.key}.studio.zip",
         description=story.description,

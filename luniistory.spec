@@ -20,6 +20,8 @@ analysis = Analysis(
         "pkg.api.device_flam",
         "pkg.api.devices",
         "pkg.api.stories",
+        "lameenc",
+        "miniaudio",
     ],
     hookspath=[],
     runtime_hooks=[],
