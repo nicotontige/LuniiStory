@@ -153,13 +153,18 @@ def build_story_json(metadata, nodes, pack_dir):
             return None
         option = telmi_transition.get("index")
         from_inventory = option is None and telmi_transition.get("indexItem") is not None
-        if option is None:
+        if from_inventory and len(actions.get(action_id, ())) > 1:
+            # Telmi picks the option a counter points at; a Lunii keeps no
+            # counters, so this would always serve the first one — the same quiz
+            # question forever. Random at least varies it, which is the nearest
+            # thing to what the pack meant.
+            option = RANDOM_OPTION
+        elif option is None:
             option = telmi_transition.get("indexItem")
         return {
             "actionNode": action_id,
             "optionIndex": int(option if option is not None else 0),
-            # Kept until the controls are settled, then dropped: an indexItem
-            # transition is a lookup by inventory counter, not a choice to make.
+            # Kept until the controls are settled, then dropped.
             INVENTORY_MARKER: from_inventory,
         }
 
@@ -225,6 +230,7 @@ def build_story_json(metadata, nodes, pack_dir):
                 node[field] = None
 
     _settle_controls(stage_nodes, action_nodes)
+    _ensure_a_way_out(stage_nodes, action_nodes)
     _enable_choice_wheel(stage_nodes, action_nodes)
     for node in stage_nodes:
         for field in ("okTransition", "homeTransition"):
@@ -250,6 +256,33 @@ def build_story_json(metadata, nodes, pack_dir):
 
 COVER_ACTION_ID = "luniistory-cover"
 INVENTORY_MARKER = "_fromInventory"
+RANDOM_OPTION = -1   # STUdio's "pick one at random"
+
+
+def _ensure_a_way_out(stage_nodes, action_nodes):
+    """Makes sure the home button can leave the story.
+
+    Telmi routes home into a prompt of its own, and some packs leave that
+    prompt looping back to the first stage: on Telmi OS the system takes you
+    out, so the graph never needs to. A Lunii has no such escape — pressing
+    home restarts the story instead of returning to the menu.
+
+    Only packs with no route to the cover at all are touched, so a pack that
+    asks "are you sure?" and then quits properly keeps its prompt.
+    """
+    cover_uuid = stage_nodes[0]["uuid"]
+    if any(cover_uuid in action["options"] for action in action_nodes):
+        return
+
+    action_nodes.append({
+        "id": COVER_ACTION_ID,
+        "name": COVER_ACTION_ID,
+        "position": {"x": 0, "y": 0},
+        "options": [cover_uuid],
+    })
+    for node in stage_nodes[1:]:
+        if node["controlSettings"].get("home"):
+            node["homeTransition"] = {"actionNode": COVER_ACTION_ID, "optionIndex": 0}
 
 
 def _enable_choice_wheel(stage_nodes, action_nodes):
@@ -268,10 +301,15 @@ def _enable_choice_wheel(stage_nodes, action_nodes):
     for node in stage_nodes[1:]:
         controls = node["controlSettings"]
         move = node["okTransition"]
-        if controls.get("wheel") or not move or move.get(INVENTORY_MARKER):
+        if controls.get("wheel") or not move:
             continue
         if move["optionIndex"] >= 0 and option_counts.get(move["actionNode"], 0) > 1:
             controls["wheel"] = True
+            # And the device has to wait. In the packs that set the wheel
+            # themselves it is never on at the same time as autoplay — 492 of
+            # 492 nodes in one, 20 of 20 in another — because autoplay moves on
+            # when the audio ends, which is before anyone has turned anything.
+            controls["autoplay"] = False
 
 
 def _settle_controls(stage_nodes, action_nodes):

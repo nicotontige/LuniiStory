@@ -160,16 +160,13 @@ def test_an_enabled_button_always_leads_somewhere(telmi_pack, tmp_path):
         assert s2[field + "Transition"] == {"actionNode": telmi.COVER_ACTION_ID, "optionIndex": 0}
 
 
-def test_no_exit_action_is_invented_when_none_is_needed(telmi_pack, tmp_path):
-    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
-    for stage in nodes["stages"].values():
-        for field in ("ok", "home"):
-            if not stage.get(field):
-                stage["control"][field] = False
-    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
-
+def test_only_one_exit_is_added(telmi_pack, tmp_path):
+    """A pack that already leads back to the cover keeps its own route."""
     story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
-    assert telmi.COVER_ACTION_ID not in {action["id"] for action in story["actionNodes"]}
+    cover = story["stageNodes"][0]["uuid"]
+
+    leading_back = [action for action in story["actionNodes"] if cover in action["options"]]
+    assert len(leading_back) == 1
 
 
 def test_a_story_ending_leaves_the_pack(telmi_pack, tmp_path):
@@ -190,15 +187,17 @@ def test_a_story_ending_leaves_the_pack(telmi_pack, tmp_path):
     assert ending["okTransition"]["actionNode"] == telmi.COVER_ACTION_ID
 
 
-def test_the_indexitem_spelling_is_understood(telmi_pack, tmp_path):
-    """A couple of packs spell the option indexItem rather than index."""
+def test_the_indexitem_spelling_is_recognised(telmi_pack, tmp_path):
+    """A couple of packs spell the option indexItem rather than index, and it
+    means something different: a lookup by counter, not a fixed choice."""
     nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
     nodes["stages"]["s0"]["ok"] = {"action": "a1", "indexItem": 1}
     (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
 
     story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
     by_name = {node["name"]: node for node in story["stageNodes"]}
-    assert by_name["s0"]["okTransition"] == {"actionNode": "a1", "optionIndex": 1}
+    assert by_name["s0"]["okTransition"]["actionNode"] == "a1"
+    assert by_name["s0"]["okTransition"]["optionIndex"] == telmi.RANDOM_OPTION
 
 
 def test_a_random_option_is_kept(telmi_pack, tmp_path):
@@ -278,3 +277,62 @@ def test_the_cover_keeps_the_wheel(telmi_pack, tmp_path):
     """
     story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
     assert story["stageNodes"][0]["controlSettings"]["wheel"] is True
+
+
+def test_a_choice_waits_for_the_child(telmi_pack, tmp_path):
+    """Autoplay moves on when the audio ends, before anyone has turned anything.
+
+    In the packs that set the wheel themselves it is never on at the same time
+    as autoplay, so a stage given the wheel loses it.
+    """
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    nodes["stages"]["s0"]["ok"] = {"action": "a1", "index": 0}   # a1 offers two
+    nodes["stages"]["s0"]["control"] = {"wheel": False, "ok": True, "home": False,
+                                        "pause": False, "autoplay": True}
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    controls = next(n for n in story["stageNodes"] if n["name"] == "s0")["controlSettings"]
+    assert controls["wheel"] is True
+    assert controls["autoplay"] is False
+
+
+def test_an_inventory_lookup_becomes_a_random_pick(telmi_pack, tmp_path):
+    """Telmi serves the option a counter points at; a Lunii keeps no counters,
+    so it would serve the first one forever — the same quiz question every
+    time."""
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    nodes["stages"]["s0"]["ok"] = {"action": "a1", "indexItem": 0}   # a1 offers two
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    assert next(n for n in story["stageNodes"] if n["name"] == "s0")["okTransition"] == {
+        "actionNode": "a1", "optionIndex": telmi.RANDOM_OPTION,
+    }
+
+
+def test_a_single_option_lookup_is_left_alone(telmi_pack, tmp_path):
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    nodes["stages"]["s0"]["ok"] = {"action": "a2", "indexItem": 0}   # a2 offers one
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    assert next(n for n in story["stageNodes"] if n["name"] == "s0")["okTransition"]["optionIndex"] == 0
+
+
+def test_home_always_has_a_way_to_the_menu(telmi_pack, tmp_path):
+    """Some packs route home into a prompt that loops back to the first stage:
+    Telmi OS takes you out, so the graph never needs to. A Lunii does not."""
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    for name, stage in nodes["stages"].items():
+        stage["ok"] = {"action": "a0", "index": 0}      # nothing dangles
+        stage["home"] = {"action": "a0", "index": 0}    # home never exits
+        stage["control"] = {"wheel": False, "ok": True, "home": True,
+                            "pause": False, "autoplay": False}
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    cover = story["stageNodes"][0]["uuid"]
+    assert any(cover in action["options"] for action in story["actionNodes"])
+    for node in story["stageNodes"][1:]:
+        assert node["homeTransition"]["actionNode"] == telmi.COVER_ACTION_ID
