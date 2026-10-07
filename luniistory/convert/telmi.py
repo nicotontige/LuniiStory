@@ -16,6 +16,7 @@ import zipfile
 from pathlib import Path
 from uuid import UUID, uuid5
 
+from luniistory.convert import audio
 from luniistory.i18n import _
 
 # Control settings of a Lunii cover node: the wheel is inactive, OK starts the
@@ -241,7 +242,12 @@ def to_studio_zip(pack_dir, output_zip, progress=None):
         if progress:
             progress(1, total)
         for index, (name, source) in enumerate(sorted(assets.items()), start=2):
-            archive.write(source, f"assets/{name}")
+            if name.lower().endswith(AUDIO_EXTS):
+                # Catalogue packs are not all mono: whatever the device cannot
+                # play is folded here, so the import never asks for FFMPEG.
+                archive.writestr(f"assets/{name}", audio.to_lunii_mp3(source.read_bytes(), name))
+            else:
+                archive.write(source, f"assets/{name}")
             if progress:
                 progress(index, total)
 

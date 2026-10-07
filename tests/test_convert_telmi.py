@@ -105,3 +105,26 @@ def test_shared_media_is_stored_once(telmi_pack, tmp_path):
 
     assert by_name["s1"]["audio"] == by_name["s2"]["audio"]
     assert len([name for name in names if name.startswith("assets/")]) == 6
+
+
+def test_stereo_audio_is_folded_to_mono(telmi_pack, tmp_path):
+    """Catalogue packs are not all mono, and the device only plays mono."""
+    import lameenc
+    from luniistory.convert import audio
+
+    encoder = lameenc.Encoder()
+    encoder.set_bit_rate(128)
+    encoder.set_in_sample_rate(44100)
+    encoder.set_channels(2)
+    encoder.set_quality(5)
+    encoder.silence()
+    stereo = bytes(encoder.encode(b"\x00\x00" * 44100 * 2) + encoder.flush())
+    (telmi_pack / "audios" / "0.mp3").write_bytes(stereo)
+    assert not audio.is_lunii_ready(stereo)
+
+    archive = telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip")
+    with zipfile.ZipFile(archive) as handle:
+        tracks = [name for name in handle.namelist() if name.endswith(".mp3")]
+        assert tracks
+        for name in tracks:
+            assert audio.is_lunii_ready(handle.read(name), name)

@@ -67,12 +67,13 @@ imported straight away.
 Arguments are passed through, so `./run.sh list` runs the command line instead
 of opening the window.
 
-**Nothing else to install.** The Lunii only plays mono 44.1 kHz MP3, and podcast
-episodes ship joint stereo, so something has to convert them. Rather than pull
-in an 80 MB FFMPEG binary to downmix a track, luniiStory decodes through
-miniaudio and re-encodes through LAME — half a megabyte of ordinary wheels.
-FFMPEG is still used if it happens to be installed, for the formats those two
-do not cover.
+**Nothing else to install.** The Lunii only plays mono 44.1 kHz MP3, and plenty
+of what the catalogs publish is stereo — podcast episodes always, story packs
+often enough. Rather than pull in an 80 MB FFMPEG binary to downmix a track,
+luniiStory decodes through miniaudio and re-encodes through LAME: half a
+megabyte of ordinary wheels, and about eight seconds for a 300-track pack.
+Audio that already fits is passed through untouched. FFMPEG is still used if it
+happens to be installed, for the formats those two do not cover.
 
 ### Without the launcher
 
