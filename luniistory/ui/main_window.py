@@ -301,7 +301,7 @@ class MainWindow(QMainWindow):
         worker.found.connect(self._on_devices_found)
         self._start(worker)
 
-    def _on_devices_found(self, devices):
+    def _on_devices_found(self, devices, attached):
         self._devices = devices
         self.device_combo.blockSignals(True)
         self.device_combo.clear()
@@ -310,7 +310,11 @@ class MainWindow(QMainWindow):
         self.device_combo.blockSignals(False)
 
         if not devices:
-            self.device_status.setText(_("No Lunii connected"))
+            # Plugged in but mounting nothing is the common case, and it has a
+            # one-step fix the old message gave no hint of.
+            self.device_status.setText(_(
+                "A Lunii is connected but has not opened its storage. Switch it on."
+            ) if attached else _("No Lunii connected"))
             self.device_combo.addItem("—")
         else:
             self.device_status.setText(devices[0]["label"])

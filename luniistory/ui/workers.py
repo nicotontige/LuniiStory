@@ -6,7 +6,7 @@ import traceback
 import requests
 from PySide6.QtCore import QThread, Signal
 
-from luniistory import directory, stores, transfer
+from luniistory import directory, stores, transfer, usb
 from luniistory.i18n import _
 
 
@@ -49,9 +49,13 @@ class ThumbnailWorker(QThread):
 
 
 class DeviceWorker(QThread):
-    """Looks for connected Lunii devices and reads their contents."""
+    """Looks for connected Lunii devices and reads their contents.
 
-    found = Signal(list)
+    ``attached`` says whether Lunii hardware is on the USB bus, which tells a
+    device that is off apart from one that is not plugged in at all.
+    """
+
+    found = Signal(list, bool)
 
     def run(self):
         devices = []
@@ -71,7 +75,7 @@ class DeviceWorker(QThread):
                     "uuids": set(),
                     "stories": [],
                 })
-        self.found.emit(devices)
+        self.found.emit(devices, bool(devices) or usb.is_lunii_attached())
 
 
 class InstallWorker(QThread):

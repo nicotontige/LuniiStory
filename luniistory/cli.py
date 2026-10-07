@@ -5,7 +5,7 @@ import logging
 import sys
 import unicodedata
 
-from luniistory import config, i18n, library, stores, transfer
+from luniistory import config, i18n, library, stores, transfer, usb
 from luniistory.convert import telmi
 from luniistory.i18n import _, _n
 
@@ -61,6 +61,8 @@ def _catalog(args):
 def _pick_device(args):
     mount_points = [args.device] if getattr(args, "device", None) else transfer.find_lunii()
     if not mount_points:
+        if usb.is_lunii_attached():
+            raise SystemExit(_(" ✗ A Lunii is connected but has not opened its storage. Switch it on."))
         raise SystemExit(_(" ✗ No Lunii found. Plug one in and try again."))
     if len(mount_points) > 1 and not getattr(args, "device", None):
         listing = "\n".join(f"   - {point}" for point in mount_points)
@@ -108,7 +110,10 @@ def cmd_list(args):
 def cmd_devices(args):
     mount_points = transfer.find_lunii()
     if not mount_points:
-        print(_(" ✗ No Lunii found"))
+        if usb.is_lunii_attached():
+            print(_(" ! A Lunii is connected but has not opened its storage. Switch it on."))
+        else:
+            print(_(" ✗ No Lunii found"))
         return 1
     for mount_point in mount_points:
         device = transfer.open_device(mount_point)
