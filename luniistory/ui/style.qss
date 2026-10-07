@@ -279,3 +279,26 @@ QListWidget::indicator:disabled {
     border-color: #e3ddd4;
     background: #f2eee8;
 }
+
+#feedGrid {
+    background: #ffffff;
+    border: 1px solid #ebe5dc;
+    border-radius: 10px;
+}
+
+#feedGrid::item {
+    border-radius: 8px;
+    padding: 4px;
+    color: #2d2a26;
+}
+
+#feedGrid::item:selected {
+    background: #ece3f7;
+    color: #2d2a26;
+}
+
+#feedDetails {
+    background: #ffffff;
+    border: 1px solid #ebe5dc;
+    border-radius: 10px;
+}
