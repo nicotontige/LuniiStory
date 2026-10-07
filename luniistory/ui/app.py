@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QLocale, QTranslator
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from luniistory import config, i18n
@@ -11,6 +12,7 @@ from luniistory.lunii_api import ENGINE_LOCALES_DIR
 from luniistory.ui.main_window import MainWindow
 
 STYLE_FILE = Path(__file__).parent / "style.qss"
+ICON_FILE = Path(__file__).parent / "icons" / "icon.png"
 
 # Lunii.QT writes its log messages in English and ships its own catalogs; we
 # load the matching one so engine messages follow the chosen language.
@@ -34,6 +36,8 @@ def run():
 
     app = QApplication.instance() or QApplication(sys.argv)
     app.setApplicationName("luniiStory")
+    if ICON_FILE.exists():
+        app.setWindowIcon(QIcon(str(ICON_FILE)))
     if STYLE_FILE.exists():
         app.setStyleSheet(STYLE_FILE.read_text("utf-8"))
 

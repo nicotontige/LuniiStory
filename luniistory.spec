@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""Recette PyInstaller — un exécutable pour la plateforme courante."""
+"""PyInstaller recipe — one executable for the current platform."""
 
 import sys
 
@@ -7,10 +7,11 @@ block_cipher = None
 
 analysis = Analysis(
     ["luniistory/__main__.py"],
-    pathex=["vendor/Lunii.QT"],   # le paquet « pkg » de Lunii.QT
+    pathex=["vendor/Lunii.QT"],   # the "pkg" package from Lunii.QT
     binaries=[],
     datas=[
         ("luniistory/ui/style.qss", "luniistory/ui"),
+        ("luniistory/ui/icons", "luniistory/ui/icons"),
         ("luniistory/locales", "luniistory/locales"),
         ("vendor/Lunii.QT/locales", "locales"),
     ],
@@ -35,6 +36,7 @@ executable = EXE(
     [],
     exclude_binaries=True,
     name="luniistory",
+    icon="luniistory/ui/icons/icon.ico",
     console=False,
     disable_windowed_traceback=False,
     target_arch=None,
@@ -54,12 +56,13 @@ if sys.platform == "darwin":
     app = BUNDLE(
         collection,
         name="luniiStory.app",
+        icon="luniistory/ui/icons/icon.icns",
         bundle_identifier="fr.luniistory.app",
         info_plist={
             "NSHighResolutionCapable": True,
-            # macOS refuse l'accès aux volumes amovibles sans cette déclaration,
-            # et la Lunii est montée comme un disque USB.
+            # macOS denies access to removable volumes without this, and the
+            # Lunii mounts as a USB disk.
             "NSRemovableVolumesUsageDescription":
-                "luniiStory lit et écrit les histoires sur la Lunii branchée en USB.",
+                "luniiStory reads and writes the stories on the Lunii connected over USB.",
         },
     )

@@ -47,6 +47,23 @@ def _age_filters():
     ]
 
 
+# Room the drop-down needs beyond the text itself: the check mark against the
+# current entry, the arrow on the closed box, and the padding from the
+# stylesheet on both. Qt sizes the popup from the box, so it has to be here.
+COMBO_CHROME = 64
+
+
+def _fit_to_contents(combo):
+    """Widens a combo so no entry is cut off, in any language."""
+    metrics = combo.fontMetrics()
+    widest = max(
+        (metrics.horizontalAdvance(combo.itemText(index)) for index in range(combo.count())),
+        default=0,
+    )
+    combo.setMinimumWidth(widest + COMBO_CHROME)
+    combo.view().setMinimumWidth(widest + COMBO_CHROME)
+
+
 def _normalize(text):
     decomposed = unicodedata.normalize("NFD", str(text).lower())
     return "".join(char for char in decomposed if unicodedata.category(char) != "Mn")
@@ -109,6 +126,7 @@ class MainWindow(QMainWindow):
             self.language_combo.addItem(i18n.language_name(code), code)
         self.language_combo.setCurrentIndex(i18n.available_languages().index(i18n.current_language()))
         self.language_combo.currentIndexChanged.connect(self._on_language_changed)
+        _fit_to_contents(self.language_combo)
 
         self.device_combo = QComboBox()
         self.device_combo.setMinimumWidth(240)

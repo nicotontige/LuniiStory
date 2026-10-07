@@ -12,7 +12,7 @@ luniistory = "luniistory.cli:main"
 packages = ["luniistory", "luniistory.convert", "luniistory.ui"]
 
 [tool.setuptools.package-data]
-luniistory = ["locales/*.json", "ui/*.qss"]
+luniistory = ["locales/*.json", "ui/*.qss", "ui/icons/*"]
 
 [tool.setuptools.dynamic]
 # Single source of truth, so a release tag can be checked against the code.
