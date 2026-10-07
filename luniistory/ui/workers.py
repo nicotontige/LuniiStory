@@ -1,13 +1,14 @@
 """Long-running work, kept off the interface thread."""
 
 import logging
-import traceback
 
 import requests
 from PySide6.QtCore import QThread, Signal
 
 from luniistory import directory, stores, transfer, updates, usb
 from luniistory.i18n import _
+
+LOGGER = logging.getLogger("luniistory.worker")
 
 
 class CatalogWorker(QThread):
@@ -18,10 +19,11 @@ class CatalogWorker(QThread):
 
     def run(self):
         session = requests.Session()
-        catalog = stores.fetch_all(
-            session=session,
-            on_error=lambda store, error: self.store_failed.emit(store["name"], str(error)),
-        )
+        def failed(store, error):
+            LOGGER.warning("library %r unreachable: %s", store["name"], error)
+            self.store_failed.emit(store["name"], str(error))
+
+        catalog = stores.fetch_all(session=session, on_error=failed)
         self.loaded.emit(catalog)
 
 
@@ -69,6 +71,7 @@ class DeviceWorker(QThread):
                     "stories": transfer.installed_stories(device),
                 })
             except Exception as error:
+                LOGGER.exception("could not read the device at %s", mount_point)
                 devices.append({
                     "mount_point": mount_point,
                     "label": _("unreadable — {error}", error=error),
@@ -103,6 +106,7 @@ class InstallWorker(QThread):
             # The device is opened here: it is only ever touched from this thread.
             self._device = transfer.open_device(self._mount_point)
         except Exception as error:
+            LOGGER.exception("could not open the device at %s", self._mount_point)
             self.log.emit(logging.ERROR, str(error))
             return
 
@@ -121,7 +125,7 @@ class InstallWorker(QThread):
                 )
                 self.story_done.emit(story.key, True, _("“{title}” transferred", title=story.title))
             except Exception as error:
-                self.log.emit(logging.DEBUG, traceback.format_exc())
+                LOGGER.exception("transfer of %r failed", story.title)
                 self.story_done.emit(story.key, False, str(error))
 
         transfer.cleanup_tmp()
@@ -135,6 +139,7 @@ class ArchiveWorker(InstallWorker):
         try:
             self._device = transfer.open_device(self._mount_point)
         except Exception as error:
+            LOGGER.exception("could not open the device at %s", self._mount_point)
             self.log.emit(logging.ERROR, str(error))
             return
 
@@ -150,7 +155,7 @@ class ArchiveWorker(InstallWorker):
                 )
                 self.story_done.emit(str(path), True, _("{path} transferred", path=path))
             except Exception as error:
-                self.log.emit(logging.DEBUG, traceback.format_exc())
+                LOGGER.exception("import of %r failed", str(path))
                 self.story_done.emit(str(path), False, str(error))
 
         transfer.cleanup_tmp()
@@ -172,6 +177,7 @@ class RemoveWorker(QThread):
         try:
             device = transfer.open_device(self._mount_point)
         except Exception as error:
+            LOGGER.exception("could not open the device at %s", self._mount_point)
             self.log.emit(logging.ERROR, str(error))
             return
         device.signal_logger.connect(self.log.emit)
@@ -190,6 +196,7 @@ class FeedDirectoryWorker(QThread):
         try:
             self.loaded.emit(directory.fetch())
         except Exception as error:
+            LOGGER.exception("could not load the published libraries")
             self.failed.emit(str(error))
 
 

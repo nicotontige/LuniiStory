@@ -7,7 +7,7 @@ from PySide6.QtCore import QLocale, QTranslator
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
-from luniistory import config, i18n
+from luniistory import config, i18n, logs
 from luniistory.lunii_api import ENGINE_LOCALES_DIR
 from luniistory.ui.main_window import MainWindow
 
@@ -32,7 +32,9 @@ def _install_engine_translator(app):
 
 def run():
     config.ensure_dirs()
+    logs.setup()
     i18n.set_language(i18n.detect_language())
+    logs.log_environment({"language": i18n.current_language(), "interface": "window"})
 
     app = QApplication.instance() or QApplication(sys.argv)
     app.setApplicationName("luniiStory")

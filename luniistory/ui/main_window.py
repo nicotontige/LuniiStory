@@ -30,6 +30,8 @@ from PySide6.QtWidgets import (
 
 from luniistory import __version__, config, eject, library, transfer, updates
 from luniistory.i18n import _, _n
+
+LOGGER = logging.getLogger("luniistory.ui")
 from luniistory.ui.library_dialog import LibraryDialog
 from luniistory.ui.settings_dialog import SettingsDialog
 from luniistory.ui.story_card import ROW_HEIGHT, StoryCard
@@ -705,6 +707,9 @@ class MainWindow(QMainWindow):
         self._start(worker)
 
     def _append_log(self, level, message):
+        # Everything is written down, including what the panel does not show:
+        # the engine's debug chatter is where a device problem is explained.
+        LOGGER.log(level, "%s", message)
         if level <= logging.DEBUG:
             return
         self.log_view.appendPlainText(str(message))

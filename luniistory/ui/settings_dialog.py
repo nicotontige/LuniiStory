@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from luniistory import config, i18n, library, transfer, updates
+from luniistory import config, i18n, library, logs, transfer, updates
 from luniistory.i18n import _, _n
 
 
@@ -81,7 +81,15 @@ class SettingsDialog(QDialog):
         form.addRow(_("Updates"), self.check_updates)
         form.addRow(_("Downloaded packs"), downloads_row)
         form.addRow(_("Audio conversion"), self.audio)
+        log_button = QPushButton(_("Open the log"))
+        log_button.clicked.connect(lambda: reveal(logs.log_dir()))
+        log_row = QHBoxLayout()
+        log_row.setSpacing(8)
+        log_row.addWidget(QLabel(_("Useful when reporting a problem")), 1)
+        log_row.addWidget(log_button)
+
         form.addRow(_("Files"), folder_row)
+        form.addRow(_("Log"), log_row)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Close)
         buttons.button(QDialogButtonBox.Close).setText(_("Close"))

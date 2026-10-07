@@ -172,6 +172,27 @@ Set `LUNIISTORY_HOME` to move the first.
 and writes the png, ico and icns. The results are committed, so a build never
 depends on the fonts installed on the machine doing the building.
 
+## Logs
+
+Everything is written to `~/.luniistory/logs/luniistory.log`, rotated at 2 MB
+with three backups. The file keeps DEBUG, which is the level that explains a
+failure after the fact; the console and the window's log panel show less.
+
+What goes in it: the version, the system, whether FFMPEG is around, every
+device that is opened with its firmware and serial, every message the Lunii.QT
+engine emits, and the stack trace of anything that fails. A failed transfer
+used to lose its traceback entirely — it was emitted at DEBUG into a panel that
+dropped DEBUG — which is exactly the thing a report needs.
+
+```bash
+python -m luniistory logs             # where it is, and how big
+python -m luniistory logs --tail 60   # the last lines
+python -m luniistory -v devices       # also print the debug level while running
+```
+
+The settings window has a button to open the folder, which is the route to
+suggest when someone reports a problem.
+
 ## Update checks
 
 On launch the application asks GitHub for the latest release and, if it is newer

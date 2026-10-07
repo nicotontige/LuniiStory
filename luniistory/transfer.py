@@ -9,7 +9,7 @@ import shutil
 import zipfile
 from pathlib import Path
 
-from luniistory import config, library, stores
+from luniistory import config, library, logs, stores
 from luniistory.convert import audio_pack, telmi
 from luniistory.i18n import _, _n
 from luniistory.lunii_api import (
@@ -21,6 +21,8 @@ from luniistory.lunii_api import (
     lunii_stories,
     which_ffmpeg,
 )
+
+LOGGER = logging.getLogger("luniistory.transfer")
 
 VERSION_NAMES = {LUNII_V1: "Lunii v1", LUNII_V2: "Lunii v2", LUNII_V3: "Lunii v3"}
 
@@ -60,7 +62,9 @@ def open_device(mount_point):
     load_story_names()
     device = LuniiDevice(str(mount_point))
     if not device.device_version:
+        LOGGER.warning("%s is not a recognised Lunii", mount_point)
         raise TransferError(_("{path} is not a recognised Lunii", path=mount_point))
+    logs.describe_device(device)
     return device
 
 

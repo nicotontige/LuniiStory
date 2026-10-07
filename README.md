@@ -97,6 +97,10 @@ is cut.
 Exporting official stories is disabled upstream in Lunii.QT, and that limit is
 kept here. luniiStory only writes to the device.
 
+**Something went wrong and I want to report it.**
+Settings has an *Open the log* button. The file records what the application and
+the device were doing, and is worth attaching to an issue.
+
 **My Lunii is plugged in and nothing shows up.**
 Switch the device on: unplugged from power it enumerates over USB and mounts
 nothing. If it is already on, the cable may be charge-only. The application says

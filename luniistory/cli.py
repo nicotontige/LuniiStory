@@ -5,7 +5,18 @@ import logging
 import sys
 import unicodedata
 
-from luniistory import __version__, config, eject, i18n, library, stores, transfer, updates, usb
+from luniistory import (
+    __version__,
+    config,
+    eject,
+    i18n,
+    library,
+    logs,
+    stores,
+    transfer,
+    updates,
+    usb,
+)
 from luniistory.convert import telmi
 from luniistory.i18n import _, _n
 
@@ -221,6 +232,16 @@ def cmd_eject(args):
     return 0
 
 
+def cmd_logs(args):
+    path = logs.log_file()
+    if args.tail:
+        print("\n".join(logs.recent(args.tail)))
+        return 0
+    print(path)
+    print(_("   {size} KB", size=path.stat().st_size // 1024 if path.exists() else 0))
+    return 0
+
+
 def cmd_version(args):
     print(f"luniistory {__version__}")
 
@@ -260,6 +281,8 @@ def build_parser():
     )
     parser.add_argument("--lang", choices=i18n.available_languages(),
                         help=_("language for this run"))
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help=_("print everything that goes to the log file"))
     subparsers = parser.add_subparsers(dest="command")
 
     def with_filters(sub):
@@ -315,6 +338,10 @@ def build_parser():
     eject_cmd.add_argument("--device")
     eject_cmd.set_defaults(func=cmd_eject)
 
+    log_cmd = subparsers.add_parser("logs", help=_("where the log file is, or what it says"))
+    log_cmd.add_argument("--tail", type=int, nargs="?", const=60, help=_("print the last lines"))
+    log_cmd.set_defaults(func=cmd_logs)
+
     version = subparsers.add_parser("version", help=_("show the version and look for a newer one"))
     version.add_argument("--no-check", action="store_true", help=_("do not ask whether a newer one is out"))
     version.add_argument("--refresh", action="store_true", help=_("ignore the cached answer"))
@@ -339,8 +366,12 @@ def main(argv=None):
     )
     i18n.set_language(requested or i18n.detect_language())
 
+    logs.setup(verbose="--verbose" in argv or "-v" in argv)
+    logs.log_environment({"language": i18n.current_language(), "interface": "command line"})
+
     parser = build_parser()
     args = parser.parse_args(argv)
+    logging.getLogger("luniistory.cli").info("command: %s", " ".join(argv) or "(gui)")
     if not getattr(args, "func", None):
         return cmd_gui(args)
     try:
