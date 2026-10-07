@@ -147,8 +147,17 @@ def build_story_json(metadata, nodes, pack_dir):
         action_id = telmi_transition.get("action")
         if action_id not in actions:
             return None
-        option = telmi_transition.get("index", telmi_transition.get("indexItem"))
-        return {"actionNode": action_id, "optionIndex": int(option if option is not None else 0)}
+        option = telmi_transition.get("index")
+        from_inventory = option is None and telmi_transition.get("indexItem") is not None
+        if option is None:
+            option = telmi_transition.get("indexItem")
+        return {
+            "actionNode": action_id,
+            "optionIndex": int(option if option is not None else 0),
+            # Kept until the controls are settled, then dropped: an indexItem
+            # transition is a lookup by inventory counter, not a choice to make.
+            INVENTORY_MARKER: from_inventory,
+        }
 
     # Cover node, rebuilt from metadata.json and startAction.
     cover_image = pack_dir / "title.png"
@@ -212,6 +221,11 @@ def build_story_json(metadata, nodes, pack_dir):
                 node[field] = None
 
     _settle_controls(stage_nodes, action_nodes)
+    _enable_choice_wheel(stage_nodes, action_nodes)
+    for node in stage_nodes:
+        for field in ("okTransition", "homeTransition"):
+            if node[field]:
+                node[field].pop(INVENTORY_MARKER, None)
 
     story_json = {
         "format": "v1",
@@ -231,6 +245,29 @@ def build_story_json(metadata, nodes, pack_dir):
 
 
 COVER_ACTION_ID = "luniistory-cover"
+INVENTORY_MARKER = "_fromInventory"
+
+
+def _enable_choice_wheel(stage_nodes, action_nodes):
+    """Lets the wheel pick between the options an interactive story offers.
+
+    Some packs never declare the wheel — "La maison de la sorcière" does not
+    contain the word at all — because Telmi OS offers the choice its own way.
+    On a Lunii the wheel is how options are browsed, so without it the first
+    option is forced and the rest of the branch is unreachable.
+
+    Only a genuine choice gets one: an option picked at random (-1) is not the
+    child's to make, and an inventory lookup is a jump table, not a menu.
+    """
+    option_counts = {action["id"]: len(action["options"]) for action in action_nodes}
+
+    for node in stage_nodes[1:]:
+        controls = node["controlSettings"]
+        move = node["okTransition"]
+        if controls.get("wheel") or not move or move.get(INVENTORY_MARKER):
+            continue
+        if move["optionIndex"] >= 0 and option_counts.get(move["actionNode"], 0) > 1:
+            controls["wheel"] = True
 
 
 def _settle_controls(stage_nodes, action_nodes):

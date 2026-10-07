@@ -648,11 +648,18 @@ class MainWindow(QMainWindow):
         self.refresh_catalog()
 
     def _browse_feeds(self):
-        known = {store["url"] for store in config.load_stores()}
-        added = FeedDirectoryDialog.ask(known, self)
+        stores = config.load_stores()
+        known = {store["url"] for store in stores}
+        protected = {store["url"] for store in stores if not store.get("deletable", True)}
+
+        added, removed = FeedDirectoryDialog.ask(known, self)
         for name, url in added:
             config.add_store(name, url)
-        if added:
+        for url in removed:
+            # The stores shipped with the application stay put.
+            if url not in protected:
+                config.remove_store(url)
+        if added or removed:
             self.refresh_catalog()
 
     def _choose_archives(self):

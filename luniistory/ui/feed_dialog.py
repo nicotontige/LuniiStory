@@ -5,7 +5,7 @@ titles made every feed look alike. Picking one fills the panel underneath.
 """
 
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPixmap
+from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -29,10 +29,40 @@ CELL_SIZE = QSize(144, 176)
 DETAIL_COVER = QSize(96, 96)
 
 
+ADDED_BORDER = QColor("#3f8f5a")
+BORDER_WIDTH = 4
+
+
 def _placeholder():
     pixmap = QPixmap(COVER_SIZE)
     pixmap.fill(QColor("#ebe5dc"))
     return QIcon(pixmap)
+
+
+def _cover_icon(path, added):
+    """Cover art, framed in green once the feed is one of your stores.
+
+    A per-item frame is not something a stylesheet can reach in an icon view,
+    so it is painted onto the pixmap.
+    """
+    pixmap = QPixmap(path).scaled(COVER_SIZE, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    if not added or pixmap.isNull():
+        return QIcon(pixmap)
+
+    framed = QPixmap(pixmap.size())
+    framed.fill(Qt.transparent)
+    painter = QPainter(framed)
+    painter.drawPixmap(0, 0, pixmap)
+    pen = QPen(ADDED_BORDER)
+    pen.setWidth(BORDER_WIDTH)
+    painter.setPen(pen)
+    inset = BORDER_WIDTH // 2
+    painter.drawRect(
+        inset, inset,
+        framed.width() - BORDER_WIDTH, framed.height() - BORDER_WIDTH,
+    )
+    painter.end()
+    return QIcon(framed)
 
 
 class FeedDirectoryDialog(QDialog):
@@ -47,6 +77,7 @@ class FeedDirectoryDialog(QDialog):
         self._items = {}
         self._covers = {}
         self.added = []
+        self.removed = []
 
         self.search = QLineEdit()
         self.search.setPlaceholderText(_("Search the feeds…"))
@@ -189,8 +220,11 @@ class FeedDirectoryDialog(QDialog):
         self.detail_description.setText(" ".join(feed.description.split()))
 
         added = feed.url in self._known
-        self.add_button.setText(_("Already added") if added else _("Add"))
-        self.add_button.setEnabled(not added)
+        self.add_button.setText(_("Remove") if added else _("Add"))
+        self.add_button.setObjectName("destructive" if added else "primary")
+        self.add_button.style().unpolish(self.add_button)
+        self.add_button.style().polish(self.add_button)
+        self.add_button.setEnabled(True)
         self.website_button.setEnabled(bool(feed.website))
 
     # -- directory -------------------------------------------------------
@@ -220,7 +254,7 @@ class FeedDirectoryDialog(QDialog):
         self._covers[key] = path
         entry = self._items.get(key)
         if entry:
-            entry[0].setIcon(QIcon(path))
+            entry[0].setIcon(_cover_icon(path, entry[1].url in self._known))
         if self._selected is not None and self._selected.key == key:
             self._show_feed(self._selected)
 
@@ -234,12 +268,28 @@ class FeedDirectoryDialog(QDialog):
     # -- actions ---------------------------------------------------------
 
     def _on_add(self):
+        """Adds the selected feed as a store, or takes it back out."""
         feed = self._selected
-        if feed is None or feed.url in self._known:
+        if feed is None:
             return
-        self.added.append((feed.title, feed.url))
-        self._known.add(feed.url)
+
+        if feed.url in self._known:
+            self._known.discard(feed.url)
+            self.removed.append(feed.url)
+            self.added = [entry for entry in self.added if entry[1] != feed.url]
+        else:
+            self._known.add(feed.url)
+            self.added.append((feed.title, feed.url))
+            self.removed = [url for url in self.removed if url != feed.url]
+
+        self._refresh_cover(feed)
         self._show_feed(feed)
+
+    def _refresh_cover(self, feed):
+        entry = self._items.get(feed.key)
+        cover = self._covers.get(feed.key)
+        if entry and cover:
+            entry[0].setIcon(_cover_icon(cover, feed.url in self._known))
 
     def _on_website(self):
         if self._selected is not None and self._selected.website:
@@ -273,7 +323,7 @@ class FeedDirectoryDialog(QDialog):
 
     @classmethod
     def ask(cls, known_urls, parent=None):
-        """Returns the ``(name, url)`` pairs the user added."""
+        """Returns the ``(name, url)`` pairs added and the urls taken out."""
         dialog = cls(known_urls, parent)
         dialog.exec()
-        return dialog.added
+        return dialog.added, dialog.removed

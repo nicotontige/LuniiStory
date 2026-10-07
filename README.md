@@ -161,7 +161,8 @@ configured out of the box, so there is something to browse on first launch.
 
 *Browse feeds* opens a directory of some 170 children's podcast feeds as a wall
 of covers — artwork is how these are recognised — each one addable as a store in
-a click, with no address to track down. Entries that carry
+a click, with no address to track down. Feeds you already follow are framed in
+green and can be dropped again from the same panel. Entries that carry
 advertising say so, which is the sort of thing worth knowing before a story
 reaches a four-year-old.
 

@@ -210,3 +210,60 @@ def test_a_random_option_is_kept(telmi_pack, tmp_path):
     story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
     by_name = {node["name"]: node for node in story["stageNodes"]}
     assert by_name["s0"]["okTransition"]["optionIndex"] == -1
+
+
+def _with_ok(telmi_pack, transition, control=None):
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    nodes["stages"]["s0"]["ok"] = transition
+    nodes["stages"]["s0"]["control"] = control or {
+        "wheel": False, "ok": True, "home": False, "pause": False, "autoplay": False,
+    }
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+    return nodes
+
+
+def _wheel_of(story, name):
+    return next(n for n in story["stageNodes"] if n["name"] == name)["controlSettings"]["wheel"]
+
+
+def test_a_branch_gets_the_wheel(telmi_pack, tmp_path):
+    """On the device the wheel is how options are browsed; without one the
+    first option is forced and the rest of the branch is unreachable."""
+    _with_ok(telmi_pack, {"action": "a1", "index": 0})      # a1 offers s1 and s2
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    assert _wheel_of(story, "s0") is True
+
+
+def test_a_single_option_is_not_a_choice(telmi_pack, tmp_path):
+    _with_ok(telmi_pack, {"action": "a2", "index": 0})      # a2 offers only s2
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    assert _wheel_of(story, "s0") is False
+
+
+def test_a_random_pick_is_not_the_childs_to_make(telmi_pack, tmp_path):
+    _with_ok(telmi_pack, {"action": "a1", "index": -1})
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    assert _wheel_of(story, "s0") is False
+
+
+def test_an_inventory_lookup_is_not_a_menu(telmi_pack, tmp_path):
+    """indexItem jumps to wherever a counter points — a jump table, not a menu."""
+    _with_ok(telmi_pack, {"action": "a1", "indexItem": 0})
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    assert _wheel_of(story, "s0") is False
+
+
+def test_a_declared_wheel_is_left_alone(telmi_pack, tmp_path):
+    _with_ok(telmi_pack, {"action": "a2", "index": 0}, control={
+        "wheel": True, "ok": True, "home": False, "pause": False, "autoplay": False,
+    })
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    assert _wheel_of(story, "s0") is True
+
+
+def test_the_inventory_marker_never_reaches_the_archive(telmi_pack, tmp_path):
+    _with_ok(telmi_pack, {"action": "a1", "indexItem": 1})
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    for node in story["stageNodes"]:
+        for field in ("okTransition", "homeTransition"):
+            assert telmi.INVENTORY_MARKER not in (node[field] or {})
