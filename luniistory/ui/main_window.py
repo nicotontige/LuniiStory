@@ -94,6 +94,8 @@ class MainWindow(QMainWindow):
         self._devices = []
         self._workers = []
         self._transfer_worker = None
+        # Whatever is currently touching the device, so nothing else starts.
+        self._busy = None
         self._current_title = ""
         self._age_filters = _age_filters()
 
@@ -392,8 +394,20 @@ class MainWindow(QMainWindow):
             if item.checkState() == Qt.Checked and item.data(Qt.UserRole)
         ]
 
+    def _on_removal_finished(self, removed, total):
+        self._busy = None
+        self._current_title = ""
+        self.progress.setVisible(False)
+        self.progress_label.setText(
+            _n(removed, "{count} story removed", "{count} stories removed")
+            if removed == total
+            else _("{removed} of {total} removed", removed=removed, total=total)
+        )
+        self.refresh_devices()
+        self._update_transfer_button()
+
     def _update_remove_button(self):
-        connected = self.current_device is not None
+        connected = self.current_device is not None and self._busy is None
         checked = self._checked_device_stories()
         self.remove_button.setText(
             _("Remove from the Lunii ({count})", count=len(checked)) if checked
@@ -560,7 +574,9 @@ class MainWindow(QMainWindow):
         self._update_transfer_button()
 
     def _update_transfer_button(self):
-        busy = self._transfer_worker is not None and self._transfer_worker.isRunning()
+        busy = self._busy is not None or (
+            self._transfer_worker is not None and self._transfer_worker.isRunning()
+        )
         count = len(self._selection)
         self.transfer_button.setText(
             _("Transfer selection ({count})", count=count) if count else _("Transfer selection")
@@ -701,9 +717,23 @@ class MainWindow(QMainWindow):
         )
         if confirmation != QMessageBox.Yes:
             return
-        worker = RemoveWorker(device["mount_point"], short_uuids, self)
+        names = {
+            story["short_uuid"]: story["name"] for story in device["stories"]
+        }
+        worker = RemoveWorker(
+            device["mount_point"],
+            [(uuid, names.get(uuid, uuid)) for uuid in short_uuids],
+            self,
+        )
         worker.log.connect(self._append_log)
-        worker.done.connect(self.refresh_devices)
+        worker.progress.connect(self._on_progress)
+        worker.story_started.connect(self._on_story_started)
+        worker.done.connect(self._on_removal_finished)
+
+        self._busy = worker
+        self.progress.setVisible(True)
+        self._update_remove_button()
+        self._update_transfer_button()
         self._start(worker)
 
     def _append_log(self, level, message):

@@ -163,15 +163,22 @@ class ArchiveWorker(InstallWorker):
 
 
 class RemoveWorker(QThread):
-    """Removes stories from the device."""
+    """Removes stories from the device.
+
+    Deleting a 300-file story takes long enough to look like nothing is
+    happening, so it reports the same way a transfer does.
+    """
 
     log = Signal(int, str)
-    done = Signal()
+    progress = Signal(str, int, int)
+    story_started = Signal(str, str)
+    done = Signal(int, int)
 
-    def __init__(self, mount_point, short_uuids, parent=None):
+    def __init__(self, mount_point, stories, parent=None):
         super().__init__(parent)
         self._mount_point = mount_point
-        self._short_uuids = list(short_uuids)
+        # (short_uuid, name) pairs, so the window can name what it is doing.
+        self._stories = list(stories)
 
     def run(self):
         try:
@@ -179,11 +186,24 @@ class RemoveWorker(QThread):
         except Exception as error:
             LOGGER.exception("could not open the device at %s", self._mount_point)
             self.log.emit(logging.ERROR, str(error))
+            self.done.emit(0, len(self._stories))
             return
+
         device.signal_logger.connect(self.log.emit)
-        for short_uuid in self._short_uuids:
-            device.remove_story(short_uuid)
-        self.done.emit()
+        removed = 0
+        for index, (short_uuid, name) in enumerate(self._stories):
+            self.story_started.emit(short_uuid, name)
+            self.progress.emit(_("Removing"), index, len(self._stories))
+            try:
+                if device.remove_story(short_uuid):
+                    removed += 1
+                else:
+                    LOGGER.warning("%s was not removed", short_uuid)
+            except Exception:
+                LOGGER.exception("removing %s failed", short_uuid)
+            self.progress.emit(_("Removing"), index + 1, len(self._stories))
+
+        self.done.emit(removed, len(self._stories))
 
 
 class FeedDirectoryWorker(QThread):

@@ -6,6 +6,7 @@ Telmi → STUdio conversion, which makes store packs readable by that engine.
 
 import logging
 import shutil
+import tempfile
 import zipfile
 from pathlib import Path
 
@@ -103,9 +104,11 @@ def prepare_archive(archive_path, on_progress=None):
         return archive_path, False
 
     config.ensure_dirs()
-    work_dir = config.TMP_DIR / f"{archive_path.stem}-telmi"
-    studio_zip = config.TMP_DIR / f"{archive_path.stem}.studio.zip"
-    telmi.zip_to_studio_zip(archive_path, studio_zip, work_dir, progress=on_progress)
+    # A folder per call, not per pack: two conversions of the same story would
+    # otherwise unpack into the same place and delete each other's files.
+    scratch = Path(tempfile.mkdtemp(prefix="convert-", dir=config.TMP_DIR))
+    studio_zip = scratch / f"{archive_path.stem}.studio.zip"
+    telmi.zip_to_studio_zip(archive_path, studio_zip, scratch / "unpacked", progress=on_progress)
     return studio_zip, True
 
 
@@ -124,7 +127,7 @@ def install_archive(device, archive_path, on_log=None, on_progress=None):
         return _import(device, prepared, on_log=on_log, on_progress=on_progress)
     finally:
         if temporary:
-            prepared.unlink(missing_ok=True)
+            shutil.rmtree(prepared.parent, ignore_errors=True)
 
 
 def install_story(device, story, on_log=None, on_progress=None, session=None):
@@ -155,7 +158,7 @@ def install_story(device, story, on_log=None, on_progress=None, session=None):
         try:
             return install_archive(device, archive, on_log=on_log, on_progress=on_progress)
         finally:
-            archive.unlink(missing_ok=True)
+            shutil.rmtree(archive.parent, ignore_errors=True)
 
     return install_archive(device, downloaded, on_log=on_log, on_progress=on_progress)
 
@@ -164,11 +167,12 @@ def _pack_episode(story, audio_path, session=None):
     """Assembles cover art and episode audio into an importable archive."""
     config.ensure_dirs()
     cover = stores.cached_thumbnail(story, session=session)
+    scratch = Path(tempfile.mkdtemp(prefix="episode-", dir=config.TMP_DIR))
     return audio_pack.build(
         title=story.title,
         audio_file=audio_path,
         cover=cover,
-        output_zip=config.TMP_DIR / f"{story.key}.studio.zip",
+        output_zip=scratch / f"{story.key}.studio.zip",
         description=story.description,
         uuid=audio_pack.story_uuid(story.key),
     )
