@@ -5,7 +5,7 @@ import logging
 import sys
 import unicodedata
 
-from luniistory import config, eject, i18n, library, stores, transfer, usb
+from luniistory import __version__, config, eject, i18n, library, stores, transfer, updates, usb
 from luniistory.convert import telmi
 from luniistory.i18n import _, _n
 
@@ -221,6 +221,21 @@ def cmd_eject(args):
     return 0
 
 
+def cmd_version(args):
+    print(f"luniistory {__version__}")
+
+    if args.no_check:
+        return 0
+    latest = updates.latest_version(use_cache=not args.refresh)
+    if latest is None:
+        print(_("   could not reach the release page"))
+    elif updates.is_newer(latest):
+        print(_("   version {version} is out: {url}", version=latest, url=updates.RELEASES_PAGE))
+    else:
+        print(_("   up to date"))
+    return 0
+
+
 def cmd_lang(args):
     if args.language:
         config.save_setting("language", i18n.set_language(args.language))
@@ -299,6 +314,11 @@ def build_parser():
     eject_cmd = subparsers.add_parser("eject", help=_("unmount the Lunii so it can be unplugged"))
     eject_cmd.add_argument("--device")
     eject_cmd.set_defaults(func=cmd_eject)
+
+    version = subparsers.add_parser("version", help=_("show the version and look for a newer one"))
+    version.add_argument("--no-check", action="store_true", help=_("do not ask whether a newer one is out"))
+    version.add_argument("--refresh", action="store_true", help=_("ignore the cached answer"))
+    version.set_defaults(func=cmd_version)
 
     language = subparsers.add_parser("lang", help=_("show or set the interface language"))
     language.add_argument("language", nargs="?", choices=i18n.available_languages())

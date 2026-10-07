@@ -40,6 +40,7 @@ Nothing else to install: no FFMPEG, no Python, no toolchain <br/>
 Eject the device so a transfer is never cut short <br/>
 English and French <br/>
 Works with Lunii v1, v2 and v3 <br/>
+Tells you when a newer release is out <br/>
 No account, no tracking, no ads <br/>
 
 </center>

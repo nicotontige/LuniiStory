@@ -6,7 +6,7 @@ import traceback
 import requests
 from PySide6.QtCore import QThread, Signal
 
-from luniistory import directory, stores, transfer, usb
+from luniistory import directory, stores, transfer, updates, usb
 from luniistory.i18n import _
 
 
@@ -214,3 +214,14 @@ class FeedThumbnailWorker(QThread):
             path = stores.cached_thumbnail(feed, session=session)
             if path:
                 self.ready.emit(feed.key, str(path))
+
+
+class UpdateWorker(QThread):
+    """Asks GitHub whether a newer release is out."""
+
+    available = Signal(str)
+
+    def run(self):
+        newer = updates.available_update()
+        if newer:
+            self.available.emit(newer)

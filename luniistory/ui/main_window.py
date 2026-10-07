@@ -5,6 +5,7 @@ import unicodedata
 from pathlib import Path
 
 from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -27,7 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from luniistory import config, eject, i18n, library, transfer
+from luniistory import __version__, config, eject, i18n, library, transfer, updates
 from luniistory.i18n import _, _n
 from luniistory.ui.library_dialog import LibraryDialog
 from luniistory.ui.story_card import ROW_HEIGHT, StoryCard
@@ -38,6 +39,7 @@ from luniistory.ui.workers import (
     InstallWorker,
     RemoveWorker,
     ThumbnailWorker,
+    UpdateWorker,
 )
 
 
@@ -98,6 +100,7 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self.refresh_devices()
         self.refresh_catalog()
+        self._check_for_update()
 
     # -- construction ----------------------------------------------------
 
@@ -133,10 +136,19 @@ class MainWindow(QMainWindow):
         title_box.setSpacing(0)
         title = QLabel("luniiStory")
         title.setObjectName("appTitle")
-        tagline = QLabel(_("Stories for the Lunii"))
+        tagline = QLabel(_("Stories for the Lunii · version {version}", version=__version__))
         tagline.setObjectName("deviceStatus")
         title_box.addWidget(title)
         title_box.addWidget(tagline)
+
+        # Hidden until there is something to say; nagging on every launch about
+        # a release you have already seen is worse than not telling you.
+        self.update_button = QPushButton()
+        self.update_button.setObjectName("update")
+        self.update_button.setVisible(False)
+        self.update_button.clicked.connect(
+            lambda: QDesktopServices.openUrl(updates.RELEASES_PAGE)
+        )
 
         self.language_combo = QComboBox()
         for code in i18n.available_languages():
@@ -147,6 +159,7 @@ class MainWindow(QMainWindow):
 
         layout.addLayout(title_box)
         layout.addStretch(1)
+        layout.addWidget(self.update_button)
         layout.addWidget(self.language_combo)
         return header
 
@@ -288,6 +301,16 @@ class MainWindow(QMainWindow):
         layout.addLayout(top)
         layout.addWidget(self.log_view)
         return footer
+
+    def _check_for_update(self):
+        worker = UpdateWorker(self)
+        worker.available.connect(self._on_update_available)
+        self._start(worker)
+
+    def _on_update_available(self, version):
+        self.update_button.setText(_("Version {version} is out", version=version))
+        self.update_button.setToolTip(_("Opens the release page in your browser"))
+        self.update_button.setVisible(True)
 
     # -- language --------------------------------------------------------
 

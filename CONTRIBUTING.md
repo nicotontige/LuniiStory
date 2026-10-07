@@ -172,6 +172,26 @@ Set `LUNIISTORY_HOME` to move the first.
 and writes the png, ico and icns. The results are committed, so a build never
 depends on the fonts installed on the machine doing the building.
 
+## Update checks
+
+On launch the application asks GitHub for the latest release and, if it is newer
+than `__version__`, shows a button in the header pointing at the release page.
+The answer is cached for a day, so launching repeatedly is one request, not one
+per launch.
+
+Nothing is downloaded or installed: the binaries are unsigned, and an
+application that replaces itself from the network is a far bigger promise than
+this one makes.
+
+```bash
+python -m luniistory version              # the version, and whether a newer one is out
+python -m luniistory version --no-check   # just the version
+python -m luniistory version --refresh    # ignore the cached answer
+```
+
+The check is opt-out, through `check_updates` in
+`~/.luniistory/settings.json`.
+
 ## Releases
 
 Two workflows run in GitHub Actions, with every action pinned to a commit SHA:

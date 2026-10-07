@@ -307,3 +307,15 @@ QListWidget::indicator:disabled {
     background: transparent;
     border: none;
 }
+
+QPushButton#update {
+    background: #FFB700;
+    border: none;
+    color: #26224C;
+    font-weight: 600;
+    padding: 7px 16px;
+}
+
+QPushButton#update:hover {
+    background: #ffc733;
+}
