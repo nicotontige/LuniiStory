@@ -19,9 +19,13 @@ from uuid import UUID, uuid5
 from luniistory.convert import audio
 from luniistory.i18n import _
 
-# Control settings of a Lunii cover node: the wheel is inactive, OK starts the
-# story, and nothing chains on its own.
-COVER_CONTROLS = {"wheel": False, "ok": True, "home": False, "pause": False, "autoplay": False}
+# Control settings of a Lunii cover node, read off a genuine story on a device:
+# the wheel turns between stories, OK starts the one in front of you, and
+# nothing chains on its own. The wheel matters more than it looks — it is the
+# cover node that governs the wheel in the story menu, so a pack that arrives
+# there with it switched off leaves the device unable to browse until it is
+# turned off and on again.
+COVER_CONTROLS = {"wheel": True, "ok": True, "home": False, "pause": False, "autoplay": False}
 
 IMAGE_EXTS = (".png", ".bmp", ".jpg", ".jpeg", ".gif", ".webp")
 AUDIO_EXTS = (".mp3", ".ogg", ".wav", ".flac", ".m4a", ".aac")

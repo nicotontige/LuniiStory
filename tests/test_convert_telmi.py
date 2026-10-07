@@ -267,3 +267,14 @@ def test_the_inventory_marker_never_reaches_the_archive(telmi_pack, tmp_path):
     for node in story["stageNodes"]:
         for field in ("okTransition", "homeTransition"):
             assert telmi.INVENTORY_MARKER not in (node[field] or {})
+
+
+def test_the_cover_keeps_the_wheel(telmi_pack, tmp_path):
+    """The cover node governs the wheel in the device's story menu.
+
+    Read off a genuine story on a Lunii: its cover has the wheel on. A pack
+    that returns there with it off leaves the menu unable to browse, and only
+    a power cycle brings it back.
+    """
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    assert story["stageNodes"][0]["controlSettings"]["wheel"] is True
