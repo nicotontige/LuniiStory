@@ -308,3 +308,25 @@ def test_a_home_that_can_already_escape_is_left_alone(telmi_pack, tmp_path):
     story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
     s1 = next(n for n in story["stageNodes"] if n["name"] == "s1")
     assert s1["homeTransition"] is not None              # it can reach the exit
+
+
+def test_a_question_keeps_leading_into_its_answers(telmi_pack, tmp_path):
+    """A stage that opens a choice is the question, not one of the answers.
+
+    Giving it a wheel would stop the story to let a child turn between answers
+    they have not heard yet; it plays its prompt and the answers come up.
+    """
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    # s1 is an option of a1, and also asks a question of its own through a1.
+    nodes["stages"]["s1"]["ok"] = {"action": "a1", "index": 0}
+    nodes["stages"]["s1"]["control"]["autoplay"] = True
+    nodes["stages"]["s1"]["control"]["wheel"] = False   # the fixture declares one
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    asking = next(n for n in story["stageNodes"] if n["name"] == "s1")
+    answer = next(n for n in story["stageNodes"] if n["name"] == "s2")
+
+    assert asking["controlSettings"]["autoplay"] is True
+    assert asking["controlSettings"]["wheel"] is False
+    assert answer["controlSettings"]["wheel"] is True

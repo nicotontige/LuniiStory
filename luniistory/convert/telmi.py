@@ -331,13 +331,21 @@ def _enable_choice_wheel(stage_nodes, action_nodes):
     one of their 492 and 20 wheel stages is an option of a multi-option action
     and not one sits anywhere else.
     """
+    options = {action["id"]: action["options"] for action in action_nodes}
     chooseable = set()
-    for action in action_nodes:
-        if len(action["options"]) > 1:
-            chooseable.update(action["options"])
+    for targets in options.values():
+        if len(targets) > 1:
+            chooseable.update(targets)
 
     for node in stage_nodes[1:]:
         if node["uuid"] not in chooseable:
+            continue
+        # A stage that itself opens a choice is the question, not one of the
+        # answers. Giving it a wheel would mean stopping to let a child turn
+        # between answers it has not heard yet: the prompt plays and the
+        # answers come up on their own, which is what it declared.
+        move = node["okTransition"]
+        if move and len(options.get(move["actionNode"], ())) > 1:
             continue
         controls = node["controlSettings"]
         controls["wheel"] = True
