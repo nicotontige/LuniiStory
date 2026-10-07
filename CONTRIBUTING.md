@@ -159,7 +159,7 @@ translation catalogs.
 | Path | Contents |
 | --- | --- |
 | `~/.luniistory/stores.json` | configured libraries |
-| `~/.luniistory/settings.json` | language and other preferences |
+| `~/.luniistory/settings.json` | `language` and `check_updates` |
 | `~/.luniistory/library/` | downloaded packs |
 | `~/.luniistory/cache/` | thumbnails and the published library list |
 | `~/.lunii-qt/` | Lunii.QT story databases and device metadata backups |
@@ -189,7 +189,7 @@ python -m luniistory version --no-check   # just the version
 python -m luniistory version --refresh    # ignore the cached answer
 ```
 
-The check is opt-out, through `check_updates` in
+The check is opt-out, from the settings window or through `check_updates` in
 `~/.luniistory/settings.json`.
 
 ## Releases

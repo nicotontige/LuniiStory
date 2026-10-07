@@ -10,8 +10,12 @@ QLabel, QCheckBox {
     background: transparent;
 }
 
+QCheckBox {
+    spacing: 8px;
+}
+
 #header {
-    background: #2e144b;
+    background: #26224C;
     color: #ffffff;
 }
 
@@ -26,7 +30,7 @@ QComboBox QAbstractItemView {
     background: #ffffff;
     color: #2d2a26;
     border: 1px solid #d8d1c7;
-    selection-background-color: #6b2fa8;
+    selection-background-color: #6175E9;
     selection-color: #ffffff;
 }
 
@@ -47,7 +51,7 @@ QPushButton {
 }
 
 QPushButton:hover {
-    border-color: #2e144b;
+    border-color: #26224C;
 }
 
 QPushButton:disabled {
@@ -56,7 +60,7 @@ QPushButton:disabled {
 }
 
 QPushButton#primary {
-    background: #6b2fa8;
+    background: #6175E9;
     border: none;
     color: #ffffff;
     font-weight: 600;
@@ -64,12 +68,12 @@ QPushButton#primary {
 }
 
 QPushButton#primary:hover {
-    background: #7f3cc4;
+    background: #7E8FEF;
 }
 
 QPushButton#primary:disabled {
-    background: #cfc7d8;
-    color: #f2eef7;
+    background: #C7CDF2;
+    color: #F0F2FD;
 }
 
 QLineEdit, QComboBox {
@@ -88,7 +92,7 @@ QTabBar::tab {
 }
 
 QTabBar::tab:selected {
-    border-bottom: 2px solid #6b2fa8;
+    border-bottom: 2px solid #6175E9;
     font-weight: 600;
 }
 
@@ -135,8 +139,8 @@ QCheckBox::indicator {
 }
 
 QCheckBox::indicator:checked {
-    background: #6b2fa8;
-    border-color: #6b2fa8;
+    background: #6175E9;
+    border-color: #6175E9;
 }
 
 #cardTitle {
@@ -173,7 +177,7 @@ QProgressBar {
 }
 
 QProgressBar::chunk {
-    background: #6b2fa8;
+    background: #6175E9;
     border-radius: 5px;
 }
 
@@ -271,8 +275,8 @@ QListWidget::indicator {
 }
 
 QListWidget::indicator:checked {
-    background: #6b2fa8;
-    border-color: #6b2fa8;
+    background: #6175E9;
+    border-color: #6175E9;
 }
 
 QListWidget::indicator:disabled {
@@ -293,7 +297,7 @@ QListWidget::indicator:disabled {
 }
 
 #feedGrid::item:selected {
-    background: #ece3f7;
+    background: #E4E8FB;
     color: #2d2a26;
 }
 

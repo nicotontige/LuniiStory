@@ -7,10 +7,10 @@ from PySide6.QtWidgets import QCheckBox, QFrame, QHBoxLayout, QLabel, QVBoxLayou
 from luniistory.i18n import _
 
 THUMB_SIZE = QSize(128, 96)
-ROW_HEIGHT = 118
+ROW_HEIGHT = 146
 # Catalogue blurbs run long; a trimmed line keeps every row the same height, so
 # the list stays scannable and never needs to scroll sideways.
-DESCRIPTION_LIMIT = 120
+DESCRIPTION_LIMIT = 110
 
 
 def shorten(text, limit=DESCRIPTION_LIMIT):

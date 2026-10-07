@@ -28,9 +28,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from luniistory import __version__, config, eject, i18n, library, transfer, updates
+from luniistory import __version__, config, eject, library, transfer, updates
 from luniistory.i18n import _, _n
 from luniistory.ui.library_dialog import LibraryDialog
+from luniistory.ui.settings_dialog import SettingsDialog
 from luniistory.ui.story_card import ROW_HEIGHT, StoryCard
 from luniistory.ui.workers import (
     ArchiveWorker,
@@ -150,17 +151,13 @@ class MainWindow(QMainWindow):
             lambda: QDesktopServices.openUrl(updates.RELEASES_PAGE)
         )
 
-        self.language_combo = QComboBox()
-        for code in i18n.available_languages():
-            self.language_combo.addItem(i18n.language_name(code), code)
-        self.language_combo.setCurrentIndex(i18n.available_languages().index(i18n.current_language()))
-        self.language_combo.currentIndexChanged.connect(self._on_language_changed)
-        _fit_to_contents(self.language_combo)
+        settings_button = QPushButton(_("Settings"))
+        settings_button.clicked.connect(self._open_settings)
 
         layout.addLayout(title_box)
         layout.addStretch(1)
         layout.addWidget(self.update_button)
-        layout.addWidget(self.language_combo)
+        layout.addWidget(settings_button)
         return header
 
     def _build_device_panel(self):
@@ -314,14 +311,12 @@ class MainWindow(QMainWindow):
 
     # -- language --------------------------------------------------------
 
-    def _on_language_changed(self, index):
-        code = self.language_combo.itemData(index)
-        if code == i18n.current_language():
-            return
-        config.save_setting("language", code)
-        i18n.set_language(code)
-        self.restart_requested = True
-        self.close()
+    def _open_settings(self):
+        if SettingsDialog.ask(self):
+            # The window is rebuilt rather than retranslated in place: Qt would
+            # need every string re-applied by hand, and this cannot drift.
+            self.restart_requested = True
+            self.close()
 
     # -- devices ---------------------------------------------------------
 
