@@ -16,20 +16,12 @@ from PySide6.QtWidgets import (
 )
 
 from luniistory.i18n import _, _n
+from luniistory.ui.story_card import shorten
 from luniistory.ui.workers import FeedDirectoryWorker, FeedThumbnailWorker
 
 THUMB_SIZE = QSize(64, 64)
 ROW_HEIGHT = 96
-# Directory blurbs run to a paragraph; one trimmed line keeps the list scannable.
 DESCRIPTION_LIMIT = 150
-
-
-def _shorten(text):
-    """One line, trimmed on a word boundary."""
-    text = " ".join(text.split())
-    if len(text) <= DESCRIPTION_LIMIT:
-        return text
-    return text[:DESCRIPTION_LIMIT].rsplit(" ", 1)[0] + "…"
 
 
 class FeedRow(QFrame):
@@ -63,7 +55,7 @@ class FeedRow(QFrame):
         texts.addWidget(title)
         texts.addWidget(subtitle)
         if feed.description:
-            description = QLabel(_shorten(feed.description))
+            description = QLabel(shorten(feed.description, DESCRIPTION_LIMIT))
             description.setObjectName("cardDescription")
             description.setWordWrap(True)
             texts.addWidget(description)

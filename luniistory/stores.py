@@ -41,6 +41,9 @@ class StoreStory:
     created_at: str = ""
     updated_at: str = ""
     store_name: str = ""
+    # A podcast episode is a bare MP3, not a story pack: it carries no cover
+    # image and no spoken title, so the Lunii has nothing to show or announce.
+    is_audio: bool = False
 
     @property
     def key(self):
@@ -193,6 +196,7 @@ def _parse_rss(body, store_name):
             created_at=published,
             updated_at=published,
             store_name=store_name,
+            is_audio=True,
         ))
     return stories
 

@@ -4,7 +4,7 @@ import logging
 import unicodedata
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -19,6 +19,9 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
+    QSplitter,
+    QStyle,
+    QTabBar,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -28,7 +31,7 @@ from luniistory import config, i18n, library, transfer
 from luniistory.i18n import _, _n
 from luniistory.ui.feed_dialog import FeedDirectoryDialog
 from luniistory.ui.store_dialog import StoreDialog
-from luniistory.ui.story_card import StoryCard
+from luniistory.ui.story_card import ROW_HEIGHT, StoryCard
 from luniistory.ui.workers import (
     ArchiveWorker,
     CatalogWorker,
@@ -39,12 +42,15 @@ from luniistory.ui.workers import (
 )
 
 
+# Catalogues declare a minimum age from 2 to 10; three steps left most of that
+# unreachable. The label names the child's age, not the story's, because the
+# filter keeps stories suitable at that age rather than stories aimed above it.
+AGE_CHOICES = (3, 4, 5, 6, 7, 8, 10)
+
+
 def _age_filters():
-    return [
-        (_("All ages"), None),
-        (_("Ages {age} and up", age=3), 3),
-        (_("Ages {age} and up", age=5), 5),
-        (_("Ages {age} and up", age=7), 7),
+    return [(_("Any age"), None)] + [
+        (_("For a child of {age}", age=age), age) for age in AGE_CHOICES
     ]
 
 
@@ -96,13 +102,23 @@ class MainWindow(QMainWindow):
     # -- construction ----------------------------------------------------
 
     def _build_ui(self):
+        # Left: what the Lunii holds. Right: what can go on it. The transfer
+        # runs right to left, so the device stays in view while browsing.
+        panels = QSplitter(Qt.Horizontal)
+        panels.setObjectName("panels")
+        panels.setChildrenCollapsible(False)
+        panels.addWidget(self._build_device_panel())
+        panels.addWidget(self._build_catalog_panel())
+        panels.setStretchFactor(0, 4)
+        panels.setStretchFactor(1, 6)
+        panels.setSizes([420, 620])
+
         root = QWidget()
         layout = QVBoxLayout(root)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self._build_header())
-        layout.addWidget(self._build_filters())
-        layout.addWidget(self._build_tabs(), 1)
+        layout.addWidget(panels, 1)
         layout.addWidget(self._build_footer())
         self.setCentralWidget(root)
 
@@ -117,10 +133,10 @@ class MainWindow(QMainWindow):
         title_box.setSpacing(0)
         title = QLabel("luniiStory")
         title.setObjectName("appTitle")
-        self.device_status = QLabel(_("Looking for a Lunii…"))
-        self.device_status.setObjectName("deviceStatus")
+        tagline = QLabel(_("Stories for the Lunii"))
+        tagline.setObjectName("deviceStatus")
         title_box.addWidget(title)
-        title_box.addWidget(self.device_status)
+        title_box.addWidget(tagline)
 
         self.language_combo = QComboBox()
         for code in i18n.available_languages():
@@ -129,25 +145,61 @@ class MainWindow(QMainWindow):
         self.language_combo.currentIndexChanged.connect(self._on_language_changed)
         _fit_to_contents(self.language_combo)
 
-        self.device_combo = QComboBox()
-        self.device_combo.setMinimumWidth(240)
-        self.device_combo.currentIndexChanged.connect(self._on_device_changed)
-
-        refresh = QPushButton(_("Find the Lunii"))
-        refresh.clicked.connect(self.refresh_devices)
-
         layout.addLayout(title_box)
         layout.addStretch(1)
         layout.addWidget(self.language_combo)
-        layout.addWidget(self.device_combo)
-        layout.addWidget(refresh)
         return header
 
-    def _build_filters(self):
-        bar = QFrame()
-        layout = QHBoxLayout(bar)
-        layout.setContentsMargins(18, 12, 18, 6)
+    def _build_device_panel(self):
+        panel = QFrame()
+        panel.setObjectName("devicePanel")
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(16, 14, 12, 14)
         layout.setSpacing(10)
+
+        self.device_title = QLabel(_("On the Lunii"))
+        self.device_title.setObjectName("panelTitle")
+
+        self.device_combo = QComboBox()
+        self.device_combo.currentIndexChanged.connect(self._on_device_changed)
+
+        find_button = QPushButton(_("Search"))
+        find_button.clicked.connect(self.refresh_devices)
+
+        picker = QHBoxLayout()
+        picker.setSpacing(8)
+        picker.addWidget(self.device_combo, 1)
+        picker.addWidget(find_button)
+
+        self.device_status = QLabel(_("Looking for a Lunii…"))
+        self.device_status.setObjectName("panelSubtitle")
+        self.device_status.setWordWrap(True)
+
+        self.device_list = QListWidget()
+        self.device_list.setSelectionMode(QListWidget.ExtendedSelection)
+        self.device_list.itemSelectionChanged.connect(self._update_remove_button)
+
+        self.remove_button = QPushButton(_("Remove from the Lunii"))
+        self.remove_button.setObjectName("destructive")
+        self.remove_button.setEnabled(False)
+        self.remove_button.clicked.connect(self._remove_selected)
+
+        layout.addWidget(self.device_title)
+        layout.addLayout(picker)
+        layout.addWidget(self.device_status)
+        layout.addWidget(self.device_list, 1)
+        layout.addWidget(self.remove_button)
+        return panel
+
+    def _build_catalog_panel(self):
+        panel = QFrame()
+        panel.setObjectName("catalogPanel")
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(12, 14, 16, 14)
+        layout.setSpacing(10)
+
+        self.catalog_title = QLabel(_("Available to transfer"))
+        self.catalog_title.setObjectName("panelTitle")
 
         self.search = QLineEdit()
         self.search.setPlaceholderText(_("Search for a story…"))
@@ -158,46 +210,50 @@ class MainWindow(QMainWindow):
         for label, _age in self._age_filters:
             self.age_combo.addItem(label)
         self.age_combo.currentIndexChanged.connect(self._apply_filters)
+        _fit_to_contents(self.age_combo)
 
-        reload_button = QPushButton(_("Refresh stores"))
+        filters = QHBoxLayout()
+        filters.setSpacing(8)
+        filters.addWidget(self.search, 1)
+        filters.addWidget(self.age_combo)
+
+        reload_button = QPushButton(_("Refresh"))
         reload_button.clicked.connect(self.refresh_catalog)
-
-        add_store = QPushButton(_("Add a store"))
-        add_store.clicked.connect(self._add_store)
 
         browse_feeds = QPushButton(_("Browse feeds"))
         browse_feeds.clicked.connect(self._browse_feeds)
 
+        add_store = QPushButton(_("Add a store"))
+        add_store.clicked.connect(self._add_store)
+
         import_button = QPushButton(_("Import a file…"))
         import_button.clicked.connect(self._choose_archives)
 
-        layout.addWidget(self.search, 1)
-        layout.addWidget(self.age_combo)
-        layout.addWidget(reload_button)
-        layout.addWidget(browse_feeds)
-        layout.addWidget(add_store)
-        layout.addWidget(import_button)
-        return bar
+        actions = QHBoxLayout()
+        actions.setSpacing(8)
+        actions.addWidget(reload_button)
+        actions.addWidget(browse_feeds)
+        actions.addWidget(add_store)
+        actions.addWidget(import_button)
+        actions.addStretch(1)
 
-    def _build_tabs(self):
         self.tabs = QTabWidget()
-        self.device_list = QListWidget()
-        self.device_list.setSelectionMode(QListWidget.ExtendedSelection)
+        # Stores the user added can be dismissed from their own tab; the two
+        # that ship with the application have no close button.
+        self.tabs.setTabsClosable(True)
+        self.tabs.tabCloseRequested.connect(self._remove_store)
 
-        device_tab = QWidget()
-        device_layout = QVBoxLayout(device_tab)
-        device_layout.setContentsMargins(18, 10, 18, 10)
-        device_layout.addWidget(self.device_list, 1)
+        layout.addWidget(self.catalog_title)
+        layout.addLayout(filters)
+        layout.addLayout(actions)
+        layout.addWidget(self.tabs, 1)
 
-        self.remove_button = QPushButton(_("Remove from the Lunii"))
-        self.remove_button.clicked.connect(self._remove_selected)
-        buttons = QHBoxLayout()
-        buttons.addStretch(1)
-        buttons.addWidget(self.remove_button)
-        device_layout.addLayout(buttons)
-
-        self.tabs.addTab(device_tab, _("On the Lunii"))
-        return self.tabs
+        self.transfer_button = QPushButton(_("Transfer selection"))
+        self.transfer_button.setObjectName("primary")
+        self.transfer_button.setEnabled(False)
+        self.transfer_button.clicked.connect(self._transfer_selection)
+        layout.addWidget(self.transfer_button)
+        return panel
 
     def _build_footer(self):
         footer = QFrame()
@@ -217,15 +273,9 @@ class MainWindow(QMainWindow):
         self.log_button.setCheckable(True)
         self.log_button.toggled.connect(lambda shown: self.log_view.setVisible(shown))
 
-        self.transfer_button = QPushButton(_("Transfer selection"))
-        self.transfer_button.setObjectName("primary")
-        self.transfer_button.setEnabled(False)
-        self.transfer_button.clicked.connect(self._transfer_selection)
-
         top.addWidget(self.progress_label, 1)
         top.addWidget(self.progress)
         top.addWidget(self.log_button)
-        top.addWidget(self.transfer_button)
 
         self.log_view = QPlainTextEdit()
         self.log_view.setReadOnly(True)
@@ -269,7 +319,7 @@ class MainWindow(QMainWindow):
         else:
             self.device_status.setText(devices[0]["label"])
 
-        self._refresh_device_tab()
+        self._refresh_device_list()
         self._refresh_states()
         self._update_transfer_button()
 
@@ -283,24 +333,29 @@ class MainWindow(QMainWindow):
     def _on_device_changed(self):
         device = self.current_device
         self.device_status.setText(device["label"] if device else _("No Lunii connected"))
-        self._refresh_device_tab()
+        self._refresh_device_list()
         self._refresh_states()
         self._update_transfer_button()
 
-    def _refresh_device_tab(self):
+    def _refresh_device_list(self):
         self.device_list.clear()
         device = self.current_device
         if not device:
+            self.device_title.setText(_("On the Lunii"))
             self.device_list.addItem(_("Plug a Lunii in to see what it holds."))
-            self.remove_button.setEnabled(False)
-            self.tabs.setTabText(0, _("On the Lunii"))
+            self._update_remove_button()
             return
         for story in device["stories"]:
             item = QListWidgetItem(f"{story['name']}" + ("  🌙" if story["night_mode"] else ""))
             item.setData(Qt.UserRole, story["short_uuid"])
             self.device_list.addItem(item)
-        self.remove_button.setEnabled(bool(device["stories"]))
-        self.tabs.setTabText(0, f"{_('On the Lunii')} ({len(device['stories'])})")
+        self.device_title.setText(_n(
+            len(device["stories"]), "{count} story on the Lunii", "{count} stories on the Lunii"
+        ))
+        self._update_remove_button()
+
+    def _update_remove_button(self):
+        self.remove_button.setEnabled(bool(self.device_list.selectedItems()) and self.current_device is not None)
 
     # -- catalog ---------------------------------------------------------
 
@@ -320,21 +375,25 @@ class MainWindow(QMainWindow):
         self._cards = {}
         self._selection.clear()
 
-        # Keep only the device tab, then rebuild one tab per store.
-        while self.tabs.count() > 1:
-            self.tabs.removeTab(1)
+        self.tabs.clear()
+        removable = {store["url"]: store.get("deletable", True) for store in config.load_stores()}
+        urls = {store["name"]: store["url"] for store in config.load_stores()}
 
         for store_name in dict.fromkeys(story.store_name for story in catalog):
             stories = [story for story in catalog if story.store_name == store_name]
-            self.tabs.addTab(self._build_store_tab(stories), f"{store_name} ({len(stories)})")
+            index = self.tabs.addTab(self._build_store_tab(stories), f"{store_name} ({len(stories)})")
+            self.tabs.tabBar().setTabData(index, urls.get(store_name))
+            if not removable.get(urls.get(store_name), False):
+                # The stores shipped with the application cannot be dismissed.
+                # Which side the close button sits on is a style decision, and
+                # macOS puts it on the left, so ask rather than assume.
+                self.tabs.tabBar().setTabButton(index, self._close_button_side(), None)
 
         self.progress_label.setText(_(
             "{stories} across {stores}",
             stories=_n(len(catalog), "{count} story", "{count} stories"),
-            stores=_n(self.tabs.count() - 1, "{count} store", "{count} stores"),
+            stores=_n(self.tabs.count(), "{count} store", "{count} stores"),
         ))
-        if self.tabs.count() > 1 and self.tabs.currentIndex() == 0:
-            self.tabs.setCurrentIndex(1)
 
         self._refresh_states()
         self._apply_filters()
@@ -347,11 +406,12 @@ class MainWindow(QMainWindow):
         listing = QListWidget()
         listing.setSelectionMode(QListWidget.NoSelection)
         listing.setSpacing(4)
+        listing.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         for story in stories:
             card = StoryCard(story)
             card.toggled.connect(self._on_card_toggled)
             item = QListWidgetItem(listing)
-            item.setSizeHint(card.sizeHint())
+            item.setSizeHint(QSize(0, ROW_HEIGHT))
             listing.addItem(item)
             listing.setItemWidget(item, card)
             self._cards[story.key] = (card, listing, item)
@@ -455,6 +515,26 @@ class MainWindow(QMainWindow):
         self._update_transfer_button()
 
     # -- other actions ----------------------------------------------------
+
+    def _close_button_side(self):
+        bar = self.tabs.tabBar()
+        return QTabBar.ButtonPosition(
+            bar.style().styleHint(QStyle.SH_TabBar_CloseButtonPosition, None, bar)
+        )
+
+    def _remove_store(self, index):
+        url = self.tabs.tabBar().tabData(index)
+        name = self.tabs.tabText(index)
+        if not url:
+            return
+        confirmation = QMessageBox.question(
+            self, "luniiStory",
+            _("Remove the store “{name}”? Its stories stay on the Lunii.", name=name),
+        )
+        if confirmation != QMessageBox.Yes:
+            return
+        config.remove_store(url)
+        self.refresh_catalog()
 
     def _add_store(self):
         answer = StoreDialog.ask(self)

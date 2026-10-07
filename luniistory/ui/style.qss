@@ -205,3 +205,35 @@ QPlainTextEdit {
     color: #b0742a;
     font-size: 12px;
 }
+
+#devicePanel {
+    background: #f4f1ec;
+    border-right: 1px solid #e3ddd4;
+}
+
+#panelTitle {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+#panelSubtitle {
+    color: #7d766c;
+    font-size: 12px;
+}
+
+QPushButton#destructive {
+    color: #c0483c;
+}
+
+QPushButton#destructive:disabled {
+    color: #c7bfb3;
+}
+
+#storyCard[state="audio-only"] {
+    background: #f6f4f1;
+}
+
+QSplitter::handle {
+    background: #e3ddd4;
+    width: 1px;
+}

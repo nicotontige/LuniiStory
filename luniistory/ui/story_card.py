@@ -7,10 +7,23 @@ from PySide6.QtWidgets import QCheckBox, QFrame, QHBoxLayout, QLabel, QVBoxLayou
 from luniistory.i18n import _
 
 THUMB_SIZE = QSize(128, 96)
+ROW_HEIGHT = 118
+# Catalogue blurbs run long; a trimmed line keeps every row the same height, so
+# the list stays scannable and never needs to scroll sideways.
+DESCRIPTION_LIMIT = 120
+
+
+def shorten(text, limit=DESCRIPTION_LIMIT):
+    """One line, trimmed on a word boundary."""
+    text = " ".join(str(text).split())
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(" ", 1)[0] + "…"
 
 
 def state_label(state):
     return {
+        "audio-only": _("no pack yet"),
         "installed": _("on the Lunii"),
         "downloaded": _("downloaded"),
         "pending": _("queued…"),
@@ -30,6 +43,14 @@ class StoryCard(QFrame):
 
         self.checkbox = QCheckBox()
         self.checkbox.toggled.connect(lambda checked: self.toggled.emit(story.key, checked))
+        if story.is_audio:
+            # A podcast episode is a bare audio file: the Lunii needs a pack
+            # with a cover image and a spoken title, which nothing builds yet.
+            self.checkbox.setEnabled(False)
+            self.checkbox.setToolTip(_(
+                "Podcast episodes cannot be transferred yet: the Lunii needs a "
+                "cover image and a spoken title, which this episode does not carry."
+            ))
 
         self.thumbnail = QLabel()
         self.thumbnail.setFixedSize(THUMB_SIZE)
@@ -68,11 +89,13 @@ class StoryCard(QFrame):
         texts.addWidget(title)
         texts.addWidget(subtitle)
         if story.description:
-            description = QLabel(story.description.strip().split("\n")[0])
+            description = QLabel(shorten(story.description))
             description.setObjectName("cardDescription")
             description.setWordWrap(True)
             texts.addWidget(description)
+        texts.addStretch(1)
 
+        self.setFixedHeight(ROW_HEIGHT)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(12)
@@ -91,6 +114,8 @@ class StoryCard(QFrame):
         self.thumbnail.setText("")
 
     def set_state(self, state):
+        if self.story.is_audio:
+            state = "audio-only"
         self.state.setText(state_label(state))
         self.setProperty("state", state)
         # Changing a property does not restyle the widget on its own.
