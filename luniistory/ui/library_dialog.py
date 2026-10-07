@@ -1,7 +1,8 @@
-"""Browsable directory of podcast feeds, each addable as a store.
+"""The one way to add a library: pick a published one, or paste an address.
 
-Shown as a wall of covers: artwork is how these are recognised, and a list of
-titles made every feed look alike. Picking one fills the panel underneath.
+The published ones are shown as a wall of covers, because artwork is how they
+are recognised and a list of titles made them all look alike. Picking one fills
+the panel underneath.
 """
 
 from PySide6.QtCore import QPoint, QSize, Qt
@@ -29,6 +30,7 @@ from PySide6.QtWidgets import (
 )
 
 from luniistory.i18n import _, _n
+from luniistory.ui.address_dialog import AddressDialog
 from luniistory.ui.story_card import shorten
 from luniistory.ui.workers import FeedDirectoryWorker, FeedThumbnailWorker
 
@@ -104,10 +106,10 @@ def _draw_tick(painter, width):
     painter.drawPolyline(tick)
 
 
-class FeedDirectoryDialog(QDialog):
+class LibraryDialog(QDialog):
     def __init__(self, known_urls, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(_("Browse story feeds"))
+        self.setWindowTitle(_("Add a library"))
         self.setModal(True)
         self.resize(860, 700)
 
@@ -119,11 +121,11 @@ class FeedDirectoryDialog(QDialog):
         self.removed = []
 
         self.search = QLineEdit()
-        self.search.setPlaceholderText(_("Search the feeds…"))
+        self.search.setPlaceholderText(_("Search the libraries…"))
         self.search.setClearButtonEnabled(True)
         self.search.textChanged.connect(self._apply_filter)
 
-        self.status = QLabel(_("Loading the feed directory…"))
+        self.status = QLabel(_("Loading the published libraries…"))
         self.status.setObjectName("panelSubtitle")
 
         self.grid = QListWidget()
@@ -138,9 +140,14 @@ class FeedDirectoryDialog(QDialog):
         self.grid.setObjectName("feedGrid")
         self.grid.currentItemChanged.connect(self._on_selected)
 
+        # The escape hatch for a library that is not on the published list.
+        self.by_address = QPushButton(_("Add by address…"))
+        self.by_address.clicked.connect(self._on_by_address)
+
         buttons = QDialogButtonBox(QDialogButtonBox.Close)
         buttons.button(QDialogButtonBox.Close).setText(_("Close"))
         buttons.rejected.connect(self.reject)
+        buttons.addButton(self.by_address, QDialogButtonBox.ActionRole)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 14, 16, 12)
@@ -233,7 +240,7 @@ class FeedDirectoryDialog(QDialog):
         if feed is None:
             self.detail_cover.setPixmap(QPixmap())
             self.detail_cover.setText("")
-            self.detail_title.setText(_("Pick a feed to see what it holds."))
+            self.detail_title.setText(_("Pick a library to see what it holds."))
             self.detail_subtitle.setText("")
             self.detail_description.setText("")
             self.add_button.setEnabled(False)
@@ -287,7 +294,7 @@ class FeedDirectoryDialog(QDialog):
         self._thumbnails.start()
 
     def _on_failed(self, error):
-        self.status.setText(_("Could not load the feed directory: {error}", error=error))
+        self.status.setText(_("Could not load the published libraries: {error}", error=error))
 
     def _on_thumbnail(self, key, path):
         self._covers[key] = path
@@ -330,6 +337,24 @@ class FeedDirectoryDialog(QDialog):
         if entry and cover:
             entry[0].setIcon(_cover_icon(cover, feed.url in self._known))
 
+    def _on_by_address(self):
+        answer = AddressDialog.ask(self)
+        if answer is None:
+            return
+        name, url = answer
+        if url in self._known:
+            return
+        self._known.add(url)
+        self.added.append((name, url))
+        self.removed = [kept for kept in self.removed if kept != url]
+
+        # It may well be one of the published libraries, entered by hand.
+        for key, (_item, feed) in self._items.items():
+            if feed.url == url:
+                self._refresh_cover(feed)
+                break
+        self.status.setText(_("“{name}” added.", name=name))
+
     def _on_website(self):
         if self._selected is not None and self._selected.website:
             QDesktopServices.openUrl(self._selected.website)
@@ -340,7 +365,7 @@ class FeedDirectoryDialog(QDialog):
         matching = {feed.key for feed in self._directory.search(self.search.text().strip())}
         for key, (item, _feed) in self._items.items():
             item.setHidden(key not in matching)
-        self.status.setText(_n(len(matching), "{count} feed", "{count} feeds"))
+        self.status.setText(_n(len(matching), "{count} library", "{count} libraries"))
 
     # -- plumbing --------------------------------------------------------
 

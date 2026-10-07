@@ -30,11 +30,11 @@ Put community stories on a Lunii, from Windows, macOS and Linux.
 
 <center>
 
-Browse community story catalogs and transfer in one click <br/>
-A directory of 170+ children's podcast feeds, no address to hunt for <br/>
+Browse community story libraries and transfer in one click <br/>
+A published list of 170+ children's story libraries, nothing to hunt for <br/>
 Your Lunii on the left, everything transferable on the right <br/>
-Add any catalog or RSS feed as a source of your own <br/>
-Filter by the age a story is meant for, search across every source <br/>
+Add any catalog or podcast address as a library of your own <br/>
+Filter by the age a story is meant for, search across every library <br/>
 Podcast episodes wrapped into a real pack, cover art and spoken title included <br/>
 Nothing else to install: no FFMPEG, no Python, no toolchain <br/>
 Eject the device so a transfer is never cut short <br/>
@@ -49,7 +49,7 @@ No account, no tracking, no ads <br/>
 
 ## Screenshots
 
-| ![The two panels](.github/assets/01-main.png) | ![Picking stories](.github/assets/02-selection.png) | ![The feed directory](.github/assets/03-feeds.png) |
+| ![The two panels](.github/assets/01-main.png) | ![Picking stories](.github/assets/02-selection.png) | ![Adding a library](.github/assets/03-feeds.png) |
 |---|---|---|
 
 
@@ -120,7 +120,7 @@ needs device keys in `~/.lunii-qt/<serial>.keys`. Flam is not exposed.
 device, vendored as a submodule. Everything on the hardware side is its work.
 
 [Telmi](https://github.com/DantSu/Telmi-Sync) — the pack format the community
-publishes in, the catalogs shipped by default, and the feed directory.
+publishes in, the libraries shipped by default, and the published list of them.
 
 [STUdio](https://github.com/DantSu/studio) — the story format a Lunii reads,
 and what every pack is converted into on the way through.

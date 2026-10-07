@@ -1,4 +1,4 @@
-"""Main window: store catalogs on one side, the Lunii on the other."""
+"""Main window: the libraries on one side, the Lunii on the other."""
 
 import logging
 import unicodedata
@@ -29,8 +29,7 @@ from PySide6.QtWidgets import (
 
 from luniistory import config, eject, i18n, library, transfer
 from luniistory.i18n import _, _n
-from luniistory.ui.feed_dialog import FeedDirectoryDialog
-from luniistory.ui.store_dialog import StoreDialog
+from luniistory.ui.library_dialog import LibraryDialog
 from luniistory.ui.story_card import ROW_HEIGHT, StoryCard
 from luniistory.ui.workers import (
     ArchiveWorker,
@@ -232,11 +231,8 @@ class MainWindow(QMainWindow):
         reload_button = QPushButton(_("Refresh"))
         reload_button.clicked.connect(self.refresh_catalog)
 
-        browse_feeds = QPushButton(_("Browse feeds"))
-        browse_feeds.clicked.connect(self._browse_feeds)
-
-        add_store = QPushButton(_("Add a store"))
-        add_store.clicked.connect(self._add_store)
+        add_library = QPushButton(_("Add a library"))
+        add_library.clicked.connect(self._add_library)
 
         import_button = QPushButton(_("Import a file…"))
         import_button.clicked.connect(self._choose_archives)
@@ -244,8 +240,7 @@ class MainWindow(QMainWindow):
         actions = QHBoxLayout()
         actions.setSpacing(8)
         actions.addWidget(reload_button)
-        actions.addWidget(browse_feeds)
-        actions.addWidget(add_store)
+        actions.addWidget(add_library)
         actions.addWidget(import_button)
         actions.addStretch(1)
 
@@ -410,7 +405,7 @@ class MainWindow(QMainWindow):
     # -- catalog ---------------------------------------------------------
 
     def refresh_catalog(self):
-        self.progress_label.setText(_("Loading stores…"))
+        self.progress_label.setText(_("Loading libraries…"))
         worker = CatalogWorker(self)
         worker.loaded.connect(self._on_catalog_loaded)
         worker.store_failed.connect(
@@ -440,7 +435,7 @@ class MainWindow(QMainWindow):
         self.progress_label.setText(_(
             "{stories} across {stores}",
             stories=_n(len(catalog), "{count} story", "{count} stories"),
-            stores=_n(self.tabs.count(), "{count} store", "{count} stores"),
+            stores=_n(self.tabs.count(), "{count} library", "{count} libraries"),
         ))
 
         self._refresh_states()
@@ -527,7 +522,7 @@ class MainWindow(QMainWindow):
         elif max_age is not None:
             message = _("No story here is meant for a child of {age}.", age=max_age)
         else:
-            message = _("This store is empty.")
+            message = _("This library is empty.")
 
         for listing, label in self._empty_states:
             hidden = all(listing.item(row).isHidden() for row in range(listing.count()))
@@ -614,7 +609,7 @@ class MainWindow(QMainWindow):
         button.setObjectName("tabClose")
         button.setText("×")
         button.setCursor(Qt.ArrowCursor)
-        button.setToolTip(_("Remove this store"))
+        button.setToolTip(_("Remove this library"))
         button.clicked.connect(lambda: self._remove_store_at(button))
         self.tabs.tabBar().setTabButton(index, QTabBar.RightSide, button)
 
@@ -633,30 +628,24 @@ class MainWindow(QMainWindow):
             return
         confirmation = QMessageBox.question(
             self, "luniiStory",
-            _("Remove the store “{name}”? Its stories stay on the Lunii.", name=name),
+            _("Remove the library “{name}”? Its stories stay on the Lunii.", name=name),
         )
         if confirmation != QMessageBox.Yes:
             return
         config.remove_store(url)
         self.refresh_catalog()
 
-    def _add_store(self):
-        answer = StoreDialog.ask(self)
-        if answer is None:
-            return
-        config.add_store(*answer)
-        self.refresh_catalog()
-
-    def _browse_feeds(self):
+    def _add_library(self):
+        """One way in: pick from the published list, or paste an address."""
         stores = config.load_stores()
         known = {store["url"] for store in stores}
         protected = {store["url"] for store in stores if not store.get("deletable", True)}
 
-        added, removed = FeedDirectoryDialog.ask(known, self)
+        added, removed = LibraryDialog.ask(known, self)
         for name, url in added:
             config.add_store(name, url)
         for url in removed:
-            # The stores shipped with the application stay put.
+            # The libraries shipped with the application stay put.
             if url not in protected:
                 config.remove_store(url)
         if added or removed:

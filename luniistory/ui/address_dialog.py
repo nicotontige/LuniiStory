@@ -1,4 +1,4 @@
-"""Single dialog asking for everything a store needs."""
+"""Asking for a library by its address, when it is not in the published list."""
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -15,8 +15,8 @@ from luniistory.i18n import _
 ACCEPTED_SCHEMES = ("http://", "https://")
 
 
-class StoreDialog(QDialog):
-    """Asks for a store's name and catalog URL in one go.
+class AddressDialog(QDialog):
+    """Asks for a library's name and address in one go.
 
     The accept button stays disabled until both fields hold something usable,
     which spares the user a round trip through an error message.
@@ -24,18 +24,18 @@ class StoreDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(_("Add a store"))
+        self.setWindowTitle(_("Add by address"))
         self.setModal(True)
         self.setMinimumWidth(460)
 
         self.name_field = QLineEdit()
-        self.name_field.setPlaceholderText(_("My story store"))
+        self.name_field.setPlaceholderText(_("My story library"))
 
         self.url_field = QLineEdit()
         self.url_field.setPlaceholderText("https://example.org/catalog.json")
 
         hint = QLabel(_(
-            "A store is any address serving a story catalog in JSON, or a "
+            "A library is any address serving a story catalog in JSON, or a "
             "podcast RSS feed. Its stories then show up in their own tab."
         ))
         hint.setObjectName("dialogHint")
@@ -70,15 +70,15 @@ class StoreDialog(QDialog):
         self._validate()
 
     @property
-    def store_name(self):
+    def library_name(self):
         return self.name_field.text().strip()
 
     @property
-    def store_url(self):
+    def library_url(self):
         return self.url_field.text().strip()
 
     def _validate(self):
-        url = self.store_url
+        url = self.library_url
         problem = ""
         if url and not url.lower().startswith(ACCEPTED_SCHEMES):
             problem = _("The address must start with http:// or https://")
@@ -86,7 +86,7 @@ class StoreDialog(QDialog):
         self.error.setText(problem)
         self.error.setVisible(bool(problem))
         self.buttons.button(QDialogButtonBox.Ok).setEnabled(
-            bool(self.store_name) and bool(url) and not problem
+            bool(self.library_name) and bool(url) and not problem
         )
 
     @classmethod

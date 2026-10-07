@@ -66,7 +66,7 @@ only puts it on the import path — none of its source is copied, so upstream
 fixes come in with `git submodule update --remote`. It is also where this
 project's GPL-3 licence comes from.
 
-Everything else is written here: the store client, the converter, the interface.
+Everything else is written here: the library client, the converter, the interface.
 
 ## How the conversion works
 
@@ -158,10 +158,10 @@ translation catalogs.
 
 | Path | Contents |
 | --- | --- |
-| `~/.luniistory/stores.json` | configured stores |
+| `~/.luniistory/stores.json` | configured libraries |
 | `~/.luniistory/settings.json` | language and other preferences |
 | `~/.luniistory/library/` | downloaded packs |
-| `~/.luniistory/cache/` | thumbnails and the feed directory |
+| `~/.luniistory/cache/` | thumbnails and the published library list |
 | `~/.lunii-qt/` | Lunii.QT story databases and device metadata backups |
 
 Set `LUNIISTORY_HOME` to move the first.

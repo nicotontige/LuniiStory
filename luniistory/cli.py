@@ -38,7 +38,7 @@ def _progress(label, current, total):
 
 def _catalog(args):
     def report(store, error):
-        print(_(" ! store “{name}” unreachable: {error}", name=store["name"], error=error), file=sys.stderr)
+        print(_(" ! library “{name}” unreachable: {error}", name=store["name"], error=error), file=sys.stderr)
 
     catalog = stores.fetch_all(on_error=report)
 
@@ -74,19 +74,19 @@ def cmd_stores(args):
     for store in config.load_stores():
         mark = " " if store.get("deletable", True) else "*"
         print(f" {mark} {store['name']}\n     {store['url']}")
-    print("\n" + _("   * default store, cannot be removed"))
+    print("\n" + _("   * default library, cannot be removed"))
     return 0
 
 
 def cmd_store_add(args):
     config.add_store(args.name, args.url)
-    print(_(" ✓ Store “{name}” added", name=args.name))
+    print(_(" ✓ Library “{name}” added", name=args.name))
     return 0
 
 
 def cmd_store_rm(args):
     config.remove_store(args.url)
-    print(_(" ✓ Store removed"))
+    print(_(" ✓ Library removed"))
     return 0
 
 
@@ -193,7 +193,7 @@ def cmd_convert(args):
 def cmd_cache(args):
     if args.clear:
         library.clear()
-        print(_(" ✓ Library emptied"))
+        print(_(" ✓ Downloads emptied"))
         return 0
     index = library.load_index()
     for entry in index.values():
@@ -241,7 +241,7 @@ def cmd_gui(args):
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="luniistory",
-        description=_("Browse Telmi story stores and send the stories to a Lunii."),
+        description=_("Browse community story libraries and send the stories to a Lunii."),
     )
     parser.add_argument("--lang", choices=i18n.available_languages(),
                         help=_("language for this run"))
@@ -249,25 +249,25 @@ def build_parser():
 
     def with_filters(sub):
         sub.add_argument("search", nargs="*", help=_("terms searched in title and description"))
-        sub.add_argument("--store", help=_("restrict to one store"))
+        sub.add_argument("--store", help=_("restrict to one library"))
         sub.add_argument("--age", type=int, help=_("maximum recommended age"))
         return sub
 
-    with_filters(subparsers.add_parser("list", help=_("list the stories in the stores"))).set_defaults(func=cmd_list)
+    with_filters(subparsers.add_parser("list", help=_("list the stories in the libraries"))).set_defaults(func=cmd_list)
 
     install = with_filters(subparsers.add_parser("install", help=_("transfer a story to the Lunii")))
     install.add_argument("--device", help=_("mount point of the Lunii"))
     install.add_argument("--all", action="store_true", help=_("transfer every match"))
     install.set_defaults(func=cmd_install)
 
-    subparsers.add_parser("stores", help=_("list the configured stores")).set_defaults(func=cmd_stores)
+    subparsers.add_parser("libraries", help=_("list the configured libraries")).set_defaults(func=cmd_stores)
 
-    store_add = subparsers.add_parser("store-add", help=_("add a store"))
+    store_add = subparsers.add_parser("library-add", help=_("add a library"))
     store_add.add_argument("name")
     store_add.add_argument("url")
     store_add.set_defaults(func=cmd_store_add)
 
-    store_rm = subparsers.add_parser("store-rm", help=_("remove a store"))
+    store_rm = subparsers.add_parser("library-remove", help=_("remove a library"))
     store_rm.add_argument("url")
     store_rm.set_defaults(func=cmd_store_rm)
 
@@ -292,7 +292,7 @@ def build_parser():
     convert.add_argument("output")
     convert.set_defaults(func=cmd_convert)
 
-    cache = subparsers.add_parser("cache", help=_("state of the local library"))
+    cache = subparsers.add_parser("cache", help=_("state of the downloaded packs"))
     cache.add_argument("--clear", action="store_true", help=_("delete the downloaded packs"))
     cache.set_defaults(func=cmd_cache)
 
