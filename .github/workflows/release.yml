@@ -111,6 +111,11 @@ jobs:
       contents: write
 
     steps:
+      # Needed only for the tag's own message, which opens the release notes.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: artifacts
@@ -122,9 +127,14 @@ jobs:
           sha256sum * > SHA256SUMS
           cat SHA256SUMS
 
-      - name: Write the download notes
+      - name: Write the release notes
         run: |
-          cat > notes.md <<'NOTES'
+          # What the tag says about this release, which is where it is written.
+          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" \
+            | sed '1{/^luniiStory /d}' > notes.md
+
+          cat >> notes.md <<'NOTES'
+
           ## Downloads
 
           | Platform | File |
