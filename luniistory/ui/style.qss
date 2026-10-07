@@ -302,3 +302,8 @@ QListWidget::indicator:disabled {
     border: 1px solid #ebe5dc;
     border-radius: 10px;
 }
+
+#detailScroll {
+    background: transparent;
+    border: none;
+}

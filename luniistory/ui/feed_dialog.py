@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
 )
 
@@ -26,7 +27,6 @@ from luniistory.ui.workers import FeedDirectoryWorker, FeedThumbnailWorker
 COVER_SIZE = QSize(120, 120)
 CELL_SIZE = QSize(144, 176)
 DETAIL_COVER = QSize(96, 96)
-DESCRIPTION_LIMIT = 320
 
 
 def _placeholder():
@@ -92,7 +92,7 @@ class FeedDirectoryDialog(QDialog):
     def _build_details(self):
         panel = QFrame()
         panel.setObjectName("feedDetails")
-        panel.setMinimumHeight(150)
+        panel.setFixedHeight(170)
 
         self.detail_cover = QLabel()
         self.detail_cover.setFixedSize(DETAIL_COVER)
@@ -106,16 +106,26 @@ class FeedDirectoryDialog(QDialog):
         self.detail_subtitle = QLabel()
         self.detail_subtitle.setWordWrap(True)
 
+        # Some blurbs run to several paragraphs, including the credits and the
+        # hosting notice, so the whole thing is kept and scrolls instead.
         self.detail_description = QLabel()
         self.detail_description.setObjectName("cardDescription")
         self.detail_description.setWordWrap(True)
         self.detail_description.setAlignment(Qt.AlignTop)
+        self.detail_description.setTextInteractionFlags(Qt.TextSelectableByMouse)
+
+        scroller = QScrollArea()
+        scroller.setObjectName("detailScroll")
+        scroller.setWidget(self.detail_description)
+        scroller.setWidgetResizable(True)
+        scroller.setFrameShape(QFrame.NoFrame)
+        scroller.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
         texts = QVBoxLayout()
         texts.setSpacing(3)
         texts.addWidget(self.detail_title)
         texts.addWidget(self.detail_subtitle)
-        texts.addWidget(self.detail_description, 1)
+        texts.addWidget(scroller, 1)
 
         self.add_button = QPushButton(_("Add"))
         self.add_button.setObjectName("primary")
@@ -176,7 +186,7 @@ class FeedDirectoryDialog(QDialog):
         self.detail_subtitle.setObjectName("feedAds" if feed.has_ads else "cardSubtitle")
         self.detail_subtitle.style().unpolish(self.detail_subtitle)
         self.detail_subtitle.style().polish(self.detail_subtitle)
-        self.detail_description.setText(shorten(feed.description, DESCRIPTION_LIMIT))
+        self.detail_description.setText(" ".join(feed.description.split()))
 
         added = feed.url in self._known
         self.add_button.setText(_("Already added") if added else _("Add"))
