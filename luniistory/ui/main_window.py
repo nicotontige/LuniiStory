@@ -85,6 +85,7 @@ class MainWindow(QMainWindow):
 
         self._catalog = []
         self._cards = {}
+        self._empty_states = []
         self._selection = set()
         self._devices = []
         self._workers = []
@@ -373,6 +374,7 @@ class MainWindow(QMainWindow):
     def _on_catalog_loaded(self, catalog):
         self._catalog = catalog
         self._cards = {}
+        self._empty_states = []
         self._selection.clear()
 
         self.tabs.clear()
@@ -412,7 +414,22 @@ class MainWindow(QMainWindow):
             listing.addItem(item)
             listing.setItemWidget(item, card)
             self._cards[story.key] = (card, listing, item)
-        return listing
+
+        # A filter that matches nothing used to leave a blank panel, with no way
+        # to tell an empty store from a hidden one.
+        empty = QLabel()
+        empty.setObjectName("emptyState")
+        empty.setAlignment(Qt.AlignCenter)
+        empty.setWordWrap(True)
+        empty.setVisible(False)
+
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(listing, 1)
+        layout.addWidget(empty, 1)
+        self._empty_states.append((listing, empty))
+        return tab
 
     def _on_thumbnail(self, key, path):
         entry = self._cards.get(key)
@@ -437,12 +454,37 @@ class MainWindow(QMainWindow):
     def _apply_filters(self):
         needle = _normalize(self.search.text().strip())
         max_age = self._age_filters[self.age_combo.currentIndex()][1]
+        visible = 0
         for card, _listing, item in self._cards.values():
             story = card.story
             matches = not needle or needle in _normalize(f"{story.title} {story.description} {story.category}")
             if max_age is not None and story.age and story.age > max_age:
                 matches = False
             item.setHidden(not matches)
+            visible += bool(matches)
+
+        self._refresh_empty_states(needle, max_age)
+        if self._catalog:
+            self.progress_label.setText(
+                _n(visible, "{count} story shown", "{count} stories shown")
+                if visible < len(self._catalog)
+                else _n(visible, "{count} story", "{count} stories")
+            )
+
+    def _refresh_empty_states(self, needle, max_age):
+        """Explains an empty tab rather than leaving it blank."""
+        if needle:
+            message = _("No story here matches “{search}”.", search=self.search.text().strip())
+        elif max_age is not None:
+            message = _("No story here is meant for a child of {age}.", age=max_age)
+        else:
+            message = _("This store is empty.")
+
+        for listing, label in self._empty_states:
+            hidden = all(listing.item(row).isHidden() for row in range(listing.count()))
+            label.setText(message)
+            label.setVisible(hidden)
+            listing.setVisible(not hidden)
 
     # -- selection and transfer -------------------------------------------
 

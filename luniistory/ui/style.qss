@@ -252,3 +252,9 @@ QToolButton#tabClose {
 QToolButton#tabClose:hover {
     color: #c0483c;
 }
+
+#emptyState {
+    color: #7d766c;
+    font-size: 13px;
+    padding: 24px;
+}
