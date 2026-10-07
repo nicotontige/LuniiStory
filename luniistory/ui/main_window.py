@@ -241,7 +241,7 @@ class MainWindow(QMainWindow):
         reload_button = QPushButton(_("Refresh"))
         reload_button.clicked.connect(self.refresh_catalog)
 
-        add_library = QPushButton(_("Add a library"))
+        add_library = QPushButton(_("Manage libraries"))
         add_library.clicked.connect(self._add_library)
 
         import_button = QPushButton(_("Import a file…"))

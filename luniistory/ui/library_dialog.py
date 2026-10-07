@@ -109,7 +109,7 @@ def _draw_tick(painter, width):
 class LibraryDialog(QDialog):
     def __init__(self, known_urls, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(_("Add a library"))
+        self.setWindowTitle(_("Manage libraries"))
         self.setModal(True)
         self.resize(860, 700)
 
