@@ -67,9 +67,10 @@ imported straight away.
 Arguments are passed through, so `./run.sh list` runs the command line instead
 of opening the window.
 
-**FFMPEG is not required.** Store packs already ship mono 44.1 kHz MP3, exactly
-what the Lunii expects. You only need FFMPEG to import a story whose audio is in
-some other format.
+**FFMPEG is optional.** Story packs from the catalogs already ship mono 44.1 kHz
+MP3, exactly what the Lunii expects, so the common case needs nothing. It is
+required for podcast episodes, which ship in stereo that only FFMPEG can fold
+down to the mono the device plays.
 
 ### Without the launcher
 
@@ -158,6 +159,13 @@ configured out of the box, so there is something to browse on first launch.
 addable as a store in a click, with no address to track down. Entries that carry
 advertising say so, which is the sort of thing worth knowing before a story
 reaches a four-year-old.
+
+An episode is a bare MP3, so a pack is built around it before the transfer: the
+feed's artwork becomes the cover the Lunii shows, and the title is spoken by the
+host's own voice — `say` on macOS, `espeak-ng` on Linux, SAPI on Windows. With
+no voice available the cover stays silent rather than the transfer failing.
+Either way this path needs FFMPEG, since podcasts are stereo and the device is
+not.
 
 ## Devices
 

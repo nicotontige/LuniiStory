@@ -20,9 +20,9 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QSplitter,
-    QStyle,
     QTabBar,
     QTabWidget,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -238,10 +238,6 @@ class MainWindow(QMainWindow):
         actions.addStretch(1)
 
         self.tabs = QTabWidget()
-        # Stores the user added can be dismissed from their own tab; the two
-        # that ship with the application have no close button.
-        self.tabs.setTabsClosable(True)
-        self.tabs.tabCloseRequested.connect(self._remove_store)
 
         layout.addWidget(self.catalog_title)
         layout.addLayout(filters)
@@ -383,11 +379,8 @@ class MainWindow(QMainWindow):
             stories = [story for story in catalog if story.store_name == store_name]
             index = self.tabs.addTab(self._build_store_tab(stories), f"{store_name} ({len(stories)})")
             self.tabs.tabBar().setTabData(index, urls.get(store_name))
-            if not removable.get(urls.get(store_name), False):
-                # The stores shipped with the application cannot be dismissed.
-                # Which side the close button sits on is a style decision, and
-                # macOS puts it on the left, so ask rather than assume.
-                self.tabs.tabBar().setTabButton(index, self._close_button_side(), None)
+            if removable.get(urls.get(store_name), False):
+                self._add_close_button(index)
 
         self.progress_label.setText(_(
             "{stories} across {stores}",
@@ -516,11 +509,27 @@ class MainWindow(QMainWindow):
 
     # -- other actions ----------------------------------------------------
 
-    def _close_button_side(self):
+    def _add_close_button(self, index):
+        """Puts a dismiss button on a store tab, always on the right.
+
+        Qt's own closable tabs follow the platform, and macOS puts the button
+        on the left, where it reads as belonging to the tab before it.
+        """
+        button = QToolButton()
+        button.setObjectName("tabClose")
+        button.setText("×")
+        button.setCursor(Qt.ArrowCursor)
+        button.setToolTip(_("Remove this store"))
+        button.clicked.connect(lambda: self._remove_store_at(button))
+        self.tabs.tabBar().setTabButton(index, QTabBar.RightSide, button)
+
+    def _remove_store_at(self, button):
+        """Finds the tab the button belongs to; indices shift as tabs close."""
         bar = self.tabs.tabBar()
-        return QTabBar.ButtonPosition(
-            bar.style().styleHint(QStyle.SH_TabBar_CloseButtonPosition, None, bar)
-        )
+        for index in range(bar.count()):
+            if bar.tabButton(index, QTabBar.RightSide) is button:
+                self._remove_store(index)
+                return
 
     def _remove_store(self, index):
         url = self.tabs.tabBar().tabData(index)

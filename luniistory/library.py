@@ -31,7 +31,13 @@ def _save_index(index):
 
 
 def pack_path(story):
-    return config.LIBRARY_DIR / f"{story.key}.zip"
+    """Where a story's download lands.
+
+    A podcast episode arrives as a bare audio file, not an archive; it keeps its
+    own extension so the pack builder can tell what it is holding.
+    """
+    suffix = ".mp3" if getattr(story, "is_audio", False) else ".zip"
+    return config.LIBRARY_DIR / f"{story.key}{suffix}"
 
 
 def is_downloaded(story):
@@ -67,7 +73,7 @@ def download(story, on_progress=None, session=None):
                 if on_progress:
                     on_progress(received, total)
 
-    if not zipfile.is_zipfile(partial):
+    if not getattr(story, "is_audio", False) and not zipfile.is_zipfile(partial):
         partial.unlink(missing_ok=True)
         raise ValueError(_("The download of “{title}” is not a zip archive", title=story.title))
 
@@ -77,7 +83,7 @@ def download(story, on_progress=None, session=None):
     index[story.key] = {
         "title": story.title,
         "uuid": story.story_uuid,
-        "pack_uuid": pack_metadata(target).get("uuid", ""),
+        "pack_uuid": pack_metadata(target).get("uuid", "") if not getattr(story, "is_audio", False) else "",
         "version": story.version,
         "store": story.store_name,
         "age": story.age,
@@ -118,10 +124,15 @@ def forget(story):
 
 
 def downloaded_size():
-    return sum(path.stat().st_size for path in config.LIBRARY_DIR.glob("*.zip"))
+    return sum(
+        path.stat().st_size
+        for pattern in ("*.zip", "*.mp3")
+        for path in config.LIBRARY_DIR.glob(pattern)
+    )
 
 
 def clear():
-    for path in config.LIBRARY_DIR.glob("*.zip"):
-        path.unlink(missing_ok=True)
+    for pattern in ("*.zip", "*.mp3"):
+        for path in config.LIBRARY_DIR.glob(pattern):
+            path.unlink(missing_ok=True)
     _save_index({})

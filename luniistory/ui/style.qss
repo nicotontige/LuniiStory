@@ -237,3 +237,18 @@ QSplitter::handle {
     background: #e3ddd4;
     width: 1px;
 }
+
+/* Dismiss button on a store tab. Styling it per tab state needs a descendant
+   selector into the tab bar, which Qt does not apply reliably, so it keeps one
+   colour and is visible whether the tab is selected or not. */
+QToolButton#tabClose {
+    background: transparent;
+    border: none;
+    color: #8e867b;
+    font-size: 15px;
+    padding: 0 2px;
+}
+
+QToolButton#tabClose:hover {
+    color: #c0483c;
+}

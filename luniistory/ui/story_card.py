@@ -23,7 +23,7 @@ def shorten(text, limit=DESCRIPTION_LIMIT):
 
 def state_label(state):
     return {
-        "audio-only": _("no pack yet"),
+        "audio-only": _("episode"),
         "installed": _("on the Lunii"),
         "downloaded": _("downloaded"),
         "pending": _("queued…"),
@@ -44,12 +44,9 @@ class StoryCard(QFrame):
         self.checkbox = QCheckBox()
         self.checkbox.toggled.connect(lambda checked: self.toggled.emit(story.key, checked))
         if story.is_audio:
-            # A podcast episode is a bare audio file: the Lunii needs a pack
-            # with a cover image and a spoken title, which nothing builds yet.
-            self.checkbox.setEnabled(False)
             self.checkbox.setToolTip(_(
-                "Podcast episodes cannot be transferred yet: the Lunii needs a "
-                "cover image and a spoken title, which this episode does not carry."
+                "A podcast episode carries no cover or spoken title, so one is "
+                "built around it before the transfer."
             ))
 
         self.thumbnail = QLabel()

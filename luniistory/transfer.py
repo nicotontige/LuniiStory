@@ -9,8 +9,8 @@ import shutil
 import zipfile
 from pathlib import Path
 
-from luniistory import config, library
-from luniistory.convert import telmi
+from luniistory import config, library, stores
+from luniistory.convert import audio_pack, telmi
 from luniistory.i18n import _, _n
 from luniistory.lunii_api import LUNII_V1, LUNII_V2, LUNII_V3, LuniiDevice, find_devices, which_ffmpeg
 
@@ -104,8 +104,43 @@ def install_story(device, story, on_log=None, on_progress=None, session=None):
         if on_progress:
             on_progress(_("Downloading"), received, total)
 
-    archive = library.download(story, on_progress=download_progress, session=session)
-    return install_archive(device, archive, on_log=on_log, on_progress=on_progress)
+    downloaded = library.download(story, on_progress=download_progress, session=session)
+
+    if getattr(story, "is_audio", False):
+        # Podcasts ship joint stereo; the Lunii only plays mono MP3, and nothing
+        # but FFMPEG can make that conversion. Say so before the engine fails
+        # with a message about STUdio archives.
+        if not ffmpeg_available():
+            raise TransferError(_(
+                "“{title}” is a podcast episode in stereo, and the Lunii only "
+                "plays mono. Converting it needs FFMPEG, which is not installed.",
+                title=story.title,
+            ))
+
+        # A bare episode is not a pack; wrap it in one before importing.
+        if on_log:
+            on_log(logging.INFO, _("Building a pack around the episode…"))
+        archive = _pack_episode(story, downloaded, session=session)
+        try:
+            return install_archive(device, archive, on_log=on_log, on_progress=on_progress)
+        finally:
+            archive.unlink(missing_ok=True)
+
+    return install_archive(device, downloaded, on_log=on_log, on_progress=on_progress)
+
+
+def _pack_episode(story, audio_path, session=None):
+    """Assembles cover art and episode audio into an importable archive."""
+    config.ensure_dirs()
+    cover = stores.cached_thumbnail(story, session=session)
+    return audio_pack.build(
+        title=story.title,
+        audio=audio_path,
+        cover=cover,
+        output_zip=config.TMP_DIR / f"{story.key}.studio.zip",
+        description=story.description,
+        uuid=audio_pack.story_uuid(story.key),
+    )
 
 
 def _import(device, archive_path, on_log=None, on_progress=None):
