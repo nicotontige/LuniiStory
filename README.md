@@ -178,15 +178,40 @@ Set `LUNIISTORY_HOME` to move the first one.
 
 ## Development
 
-```bash
-.venv/bin/pip install -r requirements-dev.txt
-.venv/bin/python -m pytest
-```
+`make` runs locally what CI runs on push, creating the virtual environment on
+first call:
+
+| Command | What it does |
+| --- | --- |
+| `make` | tests, pyflakes, workflow lint, translation catalogs |
+| `make build` | packages for this machine, then smoke-tests the result |
+| `make rehearse` | builds all four platforms in CI, publishing nothing |
+| `make release` | tags the current version, refusing a dirty tree |
+| `make clean` | drops `build/`, `dist/` and the caches |
 
 The tests cover the Telmi → STUdio conversion, its round trip through the
 Lunii.QT engine, a full install onto a Lunii v2 simulated on disk — no hardware
 needed to check that a story is written correctly — and the translation
 catalogs.
+
+`make build` does not stop at a successful build: it runs the packaged binary
+and checks that the translations shipped, that the config is reachable and that
+the Lunii engine loads. A build that completes can still produce a bundle that
+dies on launch, and that is the failure worth catching before a tag.
+
+### Before tagging
+
+```bash
+make            # everything checkable without pushing
+make build      # your own platform, end to end
+make rehearse   # the three others, in CI, publishing nothing
+```
+
+Only your own platform can be built locally — PyInstaller does not cross
+compile — so `make rehearse` is the step that covers the rest. `actionlint`
+checks the workflows if it is installed (`brew install actionlint`); keep it
+current, since its list of runner labels is baked in at build time and goes
+stale as GitHub retires images.
 
 ## Releases
 
