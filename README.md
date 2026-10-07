@@ -117,6 +117,7 @@ python -m luniistory info                      # what is on the device
 python -m luniistory install halloween         # download, convert, transfer
 python -m luniistory import story.zip          # local archive (Telmi, STUdio, .pk)
 python -m luniistory rm D8BD184F               # remove a story
+python -m luniistory eject                     # unmount before unplugging
 python -m luniistory convert pack.zip out.zip  # conversion only, no device needed
 python -m luniistory cache --clear             # drop downloaded packs
 ```

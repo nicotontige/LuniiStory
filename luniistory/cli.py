@@ -5,7 +5,7 @@ import logging
 import sys
 import unicodedata
 
-from luniistory import config, i18n, library, stores, transfer, usb
+from luniistory import config, eject, i18n, library, stores, transfer, usb
 from luniistory.convert import telmi
 from luniistory.i18n import _, _n
 
@@ -206,6 +206,21 @@ def cmd_cache(args):
     return 0
 
 
+def cmd_eject(args):
+    mount_points = [args.device] if args.device else transfer.find_lunii()
+    if not mount_points:
+        print(_(" ✗ No Lunii found"), file=sys.stderr)
+        return 1
+    for mount_point in mount_points:
+        try:
+            eject.eject(mount_point)
+            print(_(" ✓ {path} ejected, the Lunii can be unplugged", path=mount_point))
+        except Exception as error:
+            print(_(" ✗ Could not eject the Lunii: {error}", error=error), file=sys.stderr)
+            return 1
+    return 0
+
+
 def cmd_lang(args):
     if args.language:
         config.save_setting("language", i18n.set_language(args.language))
@@ -280,6 +295,10 @@ def build_parser():
     cache = subparsers.add_parser("cache", help=_("state of the local library"))
     cache.add_argument("--clear", action="store_true", help=_("delete the downloaded packs"))
     cache.set_defaults(func=cmd_cache)
+
+    eject_cmd = subparsers.add_parser("eject", help=_("unmount the Lunii so it can be unplugged"))
+    eject_cmd.add_argument("--device")
+    eject_cmd.set_defaults(func=cmd_eject)
 
     language = subparsers.add_parser("lang", help=_("show or set the interface language"))
     language.add_argument("language", nargs="?", choices=i18n.available_languages())

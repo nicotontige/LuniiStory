@@ -12,7 +12,15 @@ from pathlib import Path
 from luniistory import config, library, stores
 from luniistory.convert import audio_pack, telmi
 from luniistory.i18n import _, _n
-from luniistory.lunii_api import LUNII_V1, LUNII_V2, LUNII_V3, LuniiDevice, find_devices, which_ffmpeg
+from luniistory.lunii_api import (
+    LUNII_V1,
+    LUNII_V2,
+    LUNII_V3,
+    LuniiDevice,
+    find_devices,
+    lunii_stories,
+    which_ffmpeg,
+)
 
 VERSION_NAMES = {LUNII_V1: "Lunii v1", LUNII_V2: "Lunii v2", LUNII_V3: "Lunii v3"}
 
@@ -26,7 +34,30 @@ def find_lunii():
     return [str(path) for path in find_devices()]
 
 
+_names_loaded = False
+
+
+def load_story_names():
+    """Loads the catalogues the engine names stories from.
+
+    Lunii.QT keeps an official database and one of third-party stories, and
+    without them every story on the device reads "Unknown story". It loads them
+    at startup; nothing did here, so the left panel named nothing.
+    """
+    global _names_loaded
+
+    if _names_loaded:
+        return True
+    try:
+        _names_loaded = bool(lunii_stories.story_load_db())
+    except Exception:
+        # Offline on a first run, say: names stay unknown, nothing else breaks.
+        _names_loaded = False
+    return _names_loaded
+
+
 def open_device(mount_point):
+    load_story_names()
     device = LuniiDevice(str(mount_point))
     if not device.device_version:
         raise TransferError(_("{path} is not a recognised Lunii", path=mount_point))

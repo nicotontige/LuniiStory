@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from luniistory import config, i18n, library, transfer
+from luniistory import config, eject, i18n, library, transfer
 from luniistory.i18n import _, _n
 from luniistory.ui.feed_dialog import FeedDirectoryDialog
 from luniistory.ui.store_dialog import StoreDialog
@@ -185,11 +185,20 @@ class MainWindow(QMainWindow):
         self.remove_button.setEnabled(False)
         self.remove_button.clicked.connect(self._remove_selected)
 
+        self.eject_button = QPushButton(_("Eject"))
+        self.eject_button.setEnabled(False)
+        self.eject_button.clicked.connect(self._eject_device)
+
+        buttons = QHBoxLayout()
+        buttons.setSpacing(8)
+        buttons.addWidget(self.remove_button, 1)
+        buttons.addWidget(self.eject_button)
+
         layout.addWidget(self.device_title)
         layout.addLayout(picker)
         layout.addWidget(self.device_status)
         layout.addWidget(self.device_list, 1)
-        layout.addWidget(self.remove_button)
+        layout.addLayout(buttons)
         return panel
 
     def _build_catalog_panel(self):
@@ -356,7 +365,29 @@ class MainWindow(QMainWindow):
         self._update_remove_button()
 
     def _update_remove_button(self):
-        self.remove_button.setEnabled(bool(self.device_list.selectedItems()) and self.current_device is not None)
+        connected = self.current_device is not None
+        self.remove_button.setEnabled(bool(self.device_list.selectedItems()) and connected)
+        self.eject_button.setEnabled(connected)
+
+    def _eject_device(self, confirm=False):
+        """Unmounts the device so it can be unplugged without losing writes."""
+        device = self.current_device
+        if not device:
+            return True
+        try:
+            eject.eject(device["mount_point"])
+        except Exception as error:
+            self._append_log(logging.ERROR, _("Could not eject the Lunii: {error}", error=error))
+            if confirm:
+                return QMessageBox.question(
+                    self, "luniiStory",
+                    _("The Lunii would not eject: {error}\n\nQuit anyway?", error=error),
+                ) == QMessageBox.Yes
+            QMessageBox.warning(self, "luniiStory", _("The Lunii would not eject: {error}", error=error))
+            return False
+        self._append_log(logging.INFO, _("The Lunii can be unplugged."))
+        self.refresh_devices()
+        return True
 
     # -- catalog ---------------------------------------------------------
 
@@ -667,6 +698,22 @@ class MainWindow(QMainWindow):
             self._transfer_archives(paths)
 
     def closeEvent(self, event):
+        # Offer to unmount rather than let the device be yanked mid-write, which
+        # is how a Lunii ends up with half-written stories.
+        if self.current_device is not None and not self.restart_requested:
+            answer = QMessageBox.question(
+                self, "luniiStory",
+                _("Eject the Lunii before quitting?"),
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+                QMessageBox.Yes,
+            )
+            if answer == QMessageBox.Cancel:
+                event.ignore()
+                return
+            if answer == QMessageBox.Yes and not self._eject_device(confirm=True):
+                event.ignore()
+                return
+
         for worker in list(self._workers):
             if hasattr(worker, "abort"):
                 worker.abort()
