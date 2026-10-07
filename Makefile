@@ -1,7 +1,9 @@
 # Local checks, mirroring what GitHub Actions runs.
 #
 #   make           everything that can be checked without pushing
+#   make run       launch the app from the source tree
 #   make build     package for this machine, then smoke-test the result
+#   make run-dist  launch the packaged app
 #   make rehearse  run the release build on all four platforms, publishing nothing
 
 VENV    := .venv
@@ -10,7 +12,7 @@ PIP     := $(VENV)/bin/pip
 VERSION := $(shell $(PYTHON) -c "import luniistory; print(luniistory.__version__)" 2>/dev/null)
 
 .DEFAULT_GOAL := check
-.PHONY: check test lint i18n build smoke rehearse release clean venv
+.PHONY: check run test lint i18n build smoke run-dist rehearse release clean venv
 
 check: test lint i18n
 	@echo "✓ ready to build"
@@ -21,6 +23,11 @@ $(VENV)/bin/python:
 	python3 -m venv $(VENV)
 	$(PIP) install --quiet --upgrade pip
 	$(PIP) install --quiet -r requirements-dev.txt
+
+# What you want while developing: no packaging step, starts in a second.
+# Arguments are passed through, so `make run ARGS="list --age 5"` works too.
+run: venv
+	$(PYTHON) -m luniistory $(ARGS)
 
 test: venv
 	$(PYTHON) -m pytest -q
@@ -37,6 +44,7 @@ build: venv
 	$(PIP) install --quiet -r requirements-dev.txt
 	$(VENV)/bin/pyinstaller --noconfirm --log-level WARN luniistory.spec
 	@$(MAKE) --no-print-directory smoke
+	@echo "→ launch it with: make run-dist"
 
 # The packaged binary is what users actually run, so exercise it rather than
 # trusting that the build merely finished. Each line covers a resource that a
@@ -56,6 +64,13 @@ smoke:
 	test $$? -le 1 || { echo "  ✗ Lunii engine failed to load"; exit 1; }; \
 	echo "  Lunii engine loads"; \
 	echo "  version $(VERSION)"
+
+run-dist:
+	@if [ -d dist/luniiStory.app ]; then \
+		open dist/luniiStory.app; \
+	else \
+		dist/luniistory/luniistory; \
+	fi
 
 rehearse:
 	gh workflow run release.yml --ref $$(git branch --show-current)

@@ -184,10 +184,17 @@ first call:
 | Command | What it does |
 | --- | --- |
 | `make` | tests, pyflakes, workflow lint, translation catalogs |
+| `make run` | launches the app from the source tree |
 | `make build` | packages for this machine, then smoke-tests the result |
+| `make run-dist` | launches the packaged app |
 | `make rehearse` | builds all four platforms in CI, publishing nothing |
 | `make release` | tags the current version, refusing a dirty tree |
 | `make clean` | drops `build/`, `dist/` and the caches |
+
+While working on the code, `make run` is the one to use — it skips packaging and
+starts in a second. `make run ARGS="list --age 5"` runs a command instead of
+opening the window. `make run-dist` is for checking the bundle users download,
+after `make build`.
 
 The tests cover the Telmi → STUdio conversion, its round trip through the
 Lunii.QT engine, a full install onto a Lunii v2 simulated on disk — no hardware
