@@ -10,7 +10,6 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
     QHBoxLayout,
-    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -27,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from luniistory import config, i18n, library, transfer
 from luniistory.i18n import _, _n
+from luniistory.ui.store_dialog import StoreDialog
 from luniistory.ui.story_card import StoryCard
 from luniistory.ui.workers import (
     ArchiveWorker,
@@ -434,15 +434,10 @@ class MainWindow(QMainWindow):
     # -- other actions ----------------------------------------------------
 
     def _add_store(self):
-        name, confirmed = QInputDialog.getText(self, _("Add a store"), _("Store name:"))
-        if not confirmed or not name.strip():
+        answer = StoreDialog.ask(self)
+        if answer is None:
             return
-        url, confirmed = QInputDialog.getText(
-            self, _("Add a store"), _("Catalog URL (JSON or RSS feed):")
-        )
-        if not confirmed or not url.strip():
-            return
-        config.add_store(name.strip(), url.strip())
+        config.add_store(*answer)
         self.refresh_catalog()
 
     def _choose_archives(self):

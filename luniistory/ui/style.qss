@@ -19,10 +19,15 @@ QLabel, QCheckBox {
     color: #ffffff;
 }
 
-#header QComboBox {
-    background: #43275f;
-    border-color: #5c3f7a;
-    color: #ffffff;
+/* The header combo boxes deliberately keep the plain light styling. Painting
+   them dark means white text, which the drop-down list inherits and then draws
+   on its own white background — the items vanish. */
+QComboBox QAbstractItemView {
+    background: #ffffff;
+    color: #2d2a26;
+    border: 1px solid #d8d1c7;
+    selection-background-color: #6b2fa8;
+    selection-color: #ffffff;
 }
 
 #appTitle {
@@ -72,6 +77,8 @@ QLineEdit, QComboBox {
     border: 1px solid #d8d1c7;
     border-radius: 6px;
     padding: 6px 10px;
+    /* Without a floor, descenders get clipped by the border. */
+    min-height: 20px;
 }
 
 QTabBar::tab {
@@ -176,4 +183,14 @@ QPlainTextEdit {
     border-radius: 6px;
     font-family: "Menlo", "Consolas", monospace;
     font-size: 11px;
+}
+
+#dialogHint {
+    color: #5d574f;
+    font-size: 12px;
+}
+
+#dialogError {
+    color: #c0483c;
+    font-size: 12px;
 }
