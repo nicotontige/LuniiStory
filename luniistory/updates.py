@@ -18,6 +18,7 @@ from luniistory.stores import TIMEOUT, USER_AGENT
 REPOSITORY = "nicotontige/LuniiStory"
 LATEST_URL = f"https://api.github.com/repos/{REPOSITORY}/releases/latest"
 RELEASES_PAGE = f"https://github.com/{REPOSITORY}/releases/latest"
+NEW_ISSUE_PAGE = f"https://github.com/{REPOSITORY}/issues/new"
 
 CACHE_NAME = "latest-release.json"
 CACHE_SECONDS = 24 * 3600

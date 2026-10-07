@@ -8,6 +8,7 @@ import subprocess
 import sys
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -81,15 +82,22 @@ class SettingsDialog(QDialog):
         form.addRow(_("Updates"), self.check_updates)
         form.addRow(_("Downloaded packs"), downloads_row)
         form.addRow(_("Audio conversion"), self.audio)
+        # The two belong together: a report is worth little without the log.
         log_button = QPushButton(_("Open the log"))
         log_button.clicked.connect(lambda: reveal(logs.log_dir()))
-        log_row = QHBoxLayout()
-        log_row.setSpacing(8)
-        log_row.addWidget(QLabel(_("Useful when reporting a problem")), 1)
-        log_row.addWidget(log_button)
+
+        issue_button = QPushButton(_("Report a problem"))
+        issue_button.setToolTip(_("Opens GitHub, where bugs and ideas are collected"))
+        issue_button.clicked.connect(lambda: QDesktopServices.openUrl(updates.NEW_ISSUE_PAGE))
+
+        help_row = QHBoxLayout()
+        help_row.setSpacing(8)
+        help_row.addWidget(QLabel(_("Attach the log to say what went wrong")), 1)
+        help_row.addWidget(log_button)
+        help_row.addWidget(issue_button)
 
         form.addRow(_("Files"), folder_row)
-        form.addRow(_("Log"), log_row)
+        form.addRow(_("Help"), help_row)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Close)
         buttons.button(QDialogButtonBox.Close).setText(_("Close"))
