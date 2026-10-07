@@ -50,7 +50,7 @@ No account, no tracking, no ads <br/>
 
 ## Screenshots
 
-| ![The two panels](.github/assets/01-main.png) | ![Picking stories](.github/assets/02-selection.png) | ![Adding a library](.github/assets/03-feeds.png) |
+| ![Picking stories to transfer](.github/assets/01-transfer.png) | ![Adding a library](.github/assets/02-library.png) | ![Settings](.github/assets/03-settings.png) |
 |---|---|---|
 
 

@@ -15,7 +15,7 @@ QCheckBox {
 }
 
 #header {
-    background: #26224C;
+    background: #2A3270;
     color: #ffffff;
 }
 
@@ -51,7 +51,7 @@ QPushButton {
 }
 
 QPushButton:hover {
-    border-color: #26224C;
+    border-color: #2A3270;
 }
 
 QPushButton:disabled {
@@ -315,7 +315,7 @@ QListWidget::indicator:disabled {
 QPushButton#update {
     background: #FFB700;
     border: none;
-    color: #26224C;
+    color: #2A3270;
     font-weight: 600;
     padding: 7px 16px;
 }
