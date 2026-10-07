@@ -141,7 +141,13 @@ def install_story(device, story, on_log=None, on_progress=None, session=None):
         # A bare episode is not a pack; wrap it in one before importing.
         if on_log:
             on_log(logging.INFO, _("Building a pack around the episode…"))
-        archive = _pack_episode(story, downloaded, session=session)
+        try:
+            archive = _pack_episode(story, downloaded, session=session)
+        except Exception:
+            # A file that will not convert is no use cached: dropping it means
+            # the next attempt fetches it again rather than failing identically.
+            library.forget(story)
+            raise
         try:
             return install_archive(device, archive, on_log=on_log, on_progress=on_progress)
         finally:

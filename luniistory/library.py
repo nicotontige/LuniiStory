@@ -73,6 +73,15 @@ def download(story, on_progress=None, session=None):
                 if on_progress:
                     on_progress(received, total)
 
+    # A short read is the usual way a download goes wrong, and nothing
+    # downstream can tell a truncated file from a broken one.
+    if total and received != total:
+        partial.unlink(missing_ok=True)
+        raise ValueError(_(
+            "“{title}” downloaded only {received} of {total} bytes. Try again.",
+            title=story.title, received=received, total=total,
+        ))
+
     if not getattr(story, "is_audio", False) and not zipfile.is_zipfile(partial):
         partial.unlink(missing_ok=True)
         raise ValueError(_("The download of “{title}” is not a zip archive", title=story.title))
@@ -116,7 +125,7 @@ def known_uuid(story):
 
 
 def forget(story):
-    """Drops the pack from the local cache."""
+    """Drops the pack from the local cache, so the next try downloads it again."""
     pack_path(story).unlink(missing_ok=True)
     index = load_index()
     if index.pop(story.key, None) is not None:

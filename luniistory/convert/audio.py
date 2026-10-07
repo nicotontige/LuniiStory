@@ -10,9 +10,15 @@ as ordinary wheels on every platform we release for.
 import lameenc
 import miniaudio
 
+from luniistory.i18n import _
+
 SAMPLE_RATE = 44100
 BIT_RATE = 128
 QUALITY = 2  # LAME scale, 0 best and 9 fastest; 2 is the usual high setting
+
+
+class AudioError(Exception):
+    """The bytes could not be read as audio."""
 
 
 def is_lunii_ready(data, filename="audio.mp3"):
@@ -36,12 +42,20 @@ def to_lunii_mp3(data, filename="audio.mp3"):
     if is_lunii_ready(data, filename):
         return data
 
-    decoded = miniaudio.decode(
-        data,
-        output_format=miniaudio.SampleFormat.SIGNED16,
-        nchannels=1,
-        sample_rate=SAMPLE_RATE,
-    )
+    try:
+        decoded = miniaudio.decode(
+            data,
+            output_format=miniaudio.SampleFormat.SIGNED16,
+            nchannels=1,
+            sample_rate=SAMPLE_RATE,
+        )
+    except Exception as error:
+        # miniaudio says "failed to decode data", which tells nobody anything.
+        raise AudioError(_(
+            "{name} could not be read as audio ({size} KB). It is probably an "
+            "incomplete download; removing it and transferring again should fix it.",
+            name=filename, size=len(data) // 1024,
+        )) from error
 
     encoder = lameenc.Encoder()
     encoder.set_bit_rate(BIT_RATE)

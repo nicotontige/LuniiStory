@@ -3,6 +3,7 @@
 from io import BytesIO
 
 import lameenc
+import pytest
 from mutagen.mp3 import MP3
 
 from luniistory.convert import audio, speech
@@ -62,3 +63,13 @@ def test_a_wav_becomes_mp3():
 
 def test_unreadable_bytes_are_not_called_ready():
     assert audio.is_lunii_ready(b"not audio at all") is False
+
+
+def test_unreadable_audio_says_what_to_do():
+    """miniaudio answers "failed to decode data", which tells nobody anything."""
+    with pytest.raises(audio.AudioError) as failure:
+        audio.to_lunii_mp3(b"not audio at all" * 200, "episode.mp3")
+
+    message = str(failure.value)
+    assert "episode.mp3" in message
+    assert "incomplete download" in message
