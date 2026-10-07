@@ -286,30 +286,32 @@ def _ensure_a_way_out(stage_nodes, action_nodes):
 
 
 def _enable_choice_wheel(stage_nodes, action_nodes):
-    """Lets the wheel pick between the options an interactive story offers.
+    """Puts the wheel on the options, which is where the device looks for it.
 
-    Some packs never declare the wheel — "La maison de la sorcière" does not
-    contain the word at all — because Telmi OS offers the choice its own way.
-    On a Lunii the wheel is how options are browsed, so without it the first
-    option is forced and the rest of the branch is unreachable.
+    The wheel does not belong to the stage that asks the question — that one
+    plays its prompt and moves on. It belongs to each option that stage leads
+    to: the child lands on one, turns to hear the others, presses OK on the one
+    they want.
 
-    Only a genuine choice gets one: an option picked at random (-1) is not the
-    child's to make, and an inventory lookup is a jump table, not a menu.
+    This is the opposite of what it looks like from the Telmi side, and getting
+    it backwards leaves the wheel dead. Read off a genuine Lunii story, whose
+    21 multi-option stages all have the wheel off while 44 other nodes have it
+    on; and confirmed against the two packs that set it themselves, where every
+    one of their 492 and 20 wheel stages is an option of a multi-option action
+    and not one sits anywhere else.
     """
-    option_counts = {action["id"]: len(action["options"]) for action in action_nodes}
+    chooseable = set()
+    for action in action_nodes:
+        if len(action["options"]) > 1:
+            chooseable.update(action["options"])
 
     for node in stage_nodes[1:]:
-        controls = node["controlSettings"]
-        move = node["okTransition"]
-        if controls.get("wheel") or not move:
+        if node["uuid"] not in chooseable:
             continue
-        if move["optionIndex"] >= 0 and option_counts.get(move["actionNode"], 0) > 1:
-            controls["wheel"] = True
-            # And the device has to wait. In the packs that set the wheel
-            # themselves it is never on at the same time as autoplay — 492 of
-            # 492 nodes in one, 20 of 20 in another — because autoplay moves on
-            # when the audio ends, which is before anyone has turned anything.
-            controls["autoplay"] = False
+        controls = node["controlSettings"]
+        controls["wheel"] = True
+        # Turning takes time, which autoplay does not leave.
+        controls["autoplay"] = False
 
 
 def _settle_controls(stage_nodes, action_nodes):

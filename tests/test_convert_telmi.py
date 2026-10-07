@@ -225,39 +225,54 @@ def _wheel_of(story, name):
     return next(n for n in story["stageNodes"] if n["name"] == name)["controlSettings"]["wheel"]
 
 
-def test_a_branch_gets_the_wheel(telmi_pack, tmp_path):
-    """On the device the wheel is how options are browsed; without one the
-    first option is forced and the rest of the branch is unreachable."""
+def test_the_options_get_the_wheel(telmi_pack, tmp_path):
+    """The wheel belongs to the options, not to the stage that asks.
+
+    The child lands on one option, turns to hear the others, presses OK on the
+    one they want. Putting it on the asking stage instead leaves it dead.
+    """
     _with_ok(telmi_pack, {"action": "a1", "index": 0})      # a1 offers s1 and s2
     story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
-    assert _wheel_of(story, "s0") is True
+
+    assert _wheel_of(story, "s1") is True
+    assert _wheel_of(story, "s2") is True
+    assert _wheel_of(story, "s0") is False                  # the one that asked
 
 
-def test_a_single_option_is_not_a_choice(telmi_pack, tmp_path):
-    _with_ok(telmi_pack, {"action": "a2", "index": 0})      # a2 offers only s2
+def test_an_option_waits_for_the_child(telmi_pack, tmp_path):
+    """Turning takes time, which autoplay does not leave."""
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    nodes["stages"]["s1"]["control"]["autoplay"] = True     # s1 is an option of a1
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+
     story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    controls = next(n for n in story["stageNodes"] if n["name"] == "s1")["controlSettings"]
+    assert controls["wheel"] is True
+    assert controls["autoplay"] is False
+
+
+def test_the_only_way_on_is_not_a_choice(telmi_pack, tmp_path):
+    """a0 leads to s0 alone, so s0 has nothing to turn between."""
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    for name in ("a1", "a2"):
+        nodes["actions"][name] = [{"stage": "s2"}]          # no action offers a choice
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    # s1 declares a wheel of its own in the fixture; nothing else gains one.
     assert _wheel_of(story, "s0") is False
+    assert _wheel_of(story, "s2") is False
 
 
-def test_a_random_pick_is_not_the_childs_to_make(telmi_pack, tmp_path):
+def test_an_option_of_a_random_pick_still_gets_the_wheel(telmi_pack, tmp_path):
+    """Random chooses where you land; the wheel is how you leave that spot.
+
+    The quiz packs do exactly this: a random option to open on, browsable from
+    there.
+    """
     _with_ok(telmi_pack, {"action": "a1", "index": -1})
     story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
-    assert _wheel_of(story, "s0") is False
-
-
-def test_an_inventory_lookup_is_not_a_menu(telmi_pack, tmp_path):
-    """indexItem jumps to wherever a counter points — a jump table, not a menu."""
-    _with_ok(telmi_pack, {"action": "a1", "indexItem": 0})
-    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
-    assert _wheel_of(story, "s0") is False
-
-
-def test_a_declared_wheel_is_left_alone(telmi_pack, tmp_path):
-    _with_ok(telmi_pack, {"action": "a2", "index": 0}, control={
-        "wheel": True, "ok": True, "home": False, "pause": False, "autoplay": False,
-    })
-    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
-    assert _wheel_of(story, "s0") is True
+    assert _wheel_of(story, "s1") is True
 
 
 def test_the_inventory_marker_never_reaches_the_archive(telmi_pack, tmp_path):
@@ -277,24 +292,6 @@ def test_the_cover_keeps_the_wheel(telmi_pack, tmp_path):
     """
     story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
     assert story["stageNodes"][0]["controlSettings"]["wheel"] is True
-
-
-def test_a_choice_waits_for_the_child(telmi_pack, tmp_path):
-    """Autoplay moves on when the audio ends, before anyone has turned anything.
-
-    In the packs that set the wheel themselves it is never on at the same time
-    as autoplay, so a stage given the wheel loses it.
-    """
-    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
-    nodes["stages"]["s0"]["ok"] = {"action": "a1", "index": 0}   # a1 offers two
-    nodes["stages"]["s0"]["control"] = {"wheel": False, "ok": True, "home": False,
-                                        "pause": False, "autoplay": True}
-    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
-
-    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
-    controls = next(n for n in story["stageNodes"] if n["name"] == "s0")["controlSettings"]
-    assert controls["wheel"] is True
-    assert controls["autoplay"] is False
 
 
 def test_an_inventory_lookup_becomes_a_random_pick(telmi_pack, tmp_path):
@@ -345,12 +342,32 @@ def test_an_ending_leaves_on_its_own(telmi_pack, tmp_path):
     once to dismiss the confirmation.
     """
     nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
-    nodes["stages"]["s2"]["ok"] = None
+    # s0 is reached from a0, which offers it alone, so it is not browsable.
+    nodes["stages"]["s0"]["ok"] = None
+    nodes["stages"]["s0"]["control"] = {"wheel": False, "ok": True, "home": True,
+                                        "pause": False, "autoplay": False}
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    ending = next(node for node in story["stageNodes"] if node["name"] == "s0")
+    assert ending["okTransition"]["actionNode"] == telmi.COVER_ACTION_ID
+    assert ending["controlSettings"]["autoplay"] is True
+
+
+def test_a_browsable_ending_stays_browsable(telmi_pack, tmp_path):
+    """A stage can be both an ending and one of several options.
+
+    It must stay turnable: the child browses to it and presses OK, which leaves
+    the story. Letting it autoplay would carry them out before they chose it.
+    """
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    nodes["stages"]["s2"]["ok"] = None                      # s2 is an option of a1
     nodes["stages"]["s2"]["control"] = {"wheel": False, "ok": True, "home": True,
                                         "pause": False, "autoplay": False}
     (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
 
     story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
-    ending = next(node for node in story["stageNodes"] if node["name"] == "s2")
-    assert ending["okTransition"]["actionNode"] == telmi.COVER_ACTION_ID
-    assert ending["controlSettings"]["autoplay"] is True
+    node = next(n for n in story["stageNodes"] if n["name"] == "s2")
+    assert node["controlSettings"]["wheel"] is True
+    assert node["controlSettings"]["autoplay"] is False
+    assert node["okTransition"]["actionNode"] == telmi.COVER_ACTION_ID
