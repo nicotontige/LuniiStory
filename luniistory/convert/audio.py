@@ -17,7 +17,9 @@ QUALITY = 2  # LAME scale, 0 best and 9 fastest; 2 is the usual high setting
 
 def is_lunii_ready(data, filename="audio.mp3"):
     """True when the device would take the bytes as they are."""
-    from pkg.api.convert_audio import transcoding_required
+    # Through lunii_api, which is what puts the engine on the import path; a
+    # bare "from pkg..." only works once something else has imported it.
+    from luniistory.lunii_api import transcoding_required
 
     try:
         return not transcoding_required(filename, data)

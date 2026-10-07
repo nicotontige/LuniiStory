@@ -29,8 +29,12 @@ def test_cover_node_rebuilt_from_metadata(telmi_pack, tmp_path):
 def test_stages_and_actions_are_preserved(telmi_pack, tmp_path):
     story, _ = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
 
-    assert len(story["stageNodes"]) == 4  # couverture + s0, s1, s2
-    assert {action["id"] for action in story["actionNodes"]} == {"a0", "a1", "a2"}
+    assert len(story["stageNodes"]) == 4  # cover + s0, s1, s2
+    # a0, a1, a2 from the pack, plus the home target the converter adds for s2,
+    # whose home button is lit with nothing behind it.
+    assert {action["id"] for action in story["actionNodes"]} == {
+        "a0", "a1", "a2", telmi.HOME_ACTION_ID,
+    }
 
     by_name = {node["name"]: node for node in story["stageNodes"]}
     assert by_name["s0"]["okTransition"] == {"actionNode": "a1", "optionIndex": 0}
@@ -128,3 +132,61 @@ def test_stereo_audio_is_folded_to_mono(telmi_pack, tmp_path):
         assert tracks
         for name in tracks:
             assert audio.is_lunii_ready(handle.read(name), name)
+
+
+def test_an_enabled_button_always_leads_somewhere(telmi_pack, tmp_path):
+    """Telmi OS answers dead button presses itself; a Lunii follows the
+    transition it was promised and stops with an SD card error."""
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    nodes["stages"]["s2"]["control"] = {"wheel": False, "ok": True, "home": True,
+                                        "pause": False, "autoplay": False}
+    nodes["stages"]["s2"]["ok"] = None      # OK lit, with nowhere to go
+    nodes["stages"]["s2"]["home"] = None    # same for home
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    by_name = {node["name"]: node for node in story["stageNodes"]}
+    s2 = by_name["s2"]
+
+    # Home means "back to the cover" on the device, so it is given that target.
+    assert s2["controlSettings"]["home"] is True
+    assert s2["homeTransition"]["actionNode"] == telmi.HOME_ACTION_ID
+    home = next(a for a in story["actionNodes"] if a["id"] == telmi.HOME_ACTION_ID)
+    assert home["options"] == [story["stageNodes"][0]["uuid"]]
+
+    # OK has no stand-in, so the button goes dark rather than dangling.
+    assert s2["controlSettings"]["ok"] is False
+    assert s2["okTransition"] is None
+
+
+def test_no_home_action_is_invented_when_none_is_needed(telmi_pack, tmp_path):
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    for stage in nodes["stages"].values():
+        if not stage.get("home"):
+            stage["control"]["home"] = False
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    assert telmi.HOME_ACTION_ID not in {action["id"] for action in story["actionNodes"]}
+
+
+def test_the_indexitem_spelling_is_understood(telmi_pack, tmp_path):
+    """A couple of packs spell the option indexItem rather than index."""
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    nodes["stages"]["s0"]["ok"] = {"action": "a1", "indexItem": 1}
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    by_name = {node["name"]: node for node in story["stageNodes"]}
+    assert by_name["s0"]["okTransition"] == {"actionNode": "a1", "optionIndex": 1}
+
+
+def test_a_random_option_is_kept(telmi_pack, tmp_path):
+    """STUdio uses -1 to mean "pick one at random"; it must survive."""
+    nodes = json.loads((telmi_pack / "nodes.json").read_text("utf-8"))
+    nodes["stages"]["s0"]["ok"] = {"action": "a1", "index": -1}
+    (telmi_pack / "nodes.json").write_text(json.dumps(nodes), "utf-8")
+
+    story, _names = _story_json(telmi.to_studio_zip(telmi_pack, tmp_path / "out.zip"))
+    by_name = {node["name"]: node for node in story["stageNodes"]}
+    assert by_name["s0"]["okTransition"]["optionIndex"] == -1

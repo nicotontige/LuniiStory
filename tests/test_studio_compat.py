@@ -39,9 +39,10 @@ def test_index_files_are_consistent(telmi_pack, tmp_path):
     node_data = story.get_ni_data()
     assert len(node_data) == NI_HEADER_SIZE + 4 * NODE_SIZE
 
-    # li flattens every action's options: a0(1) + a1(2) + a2(1).
-    assert len(story.li) == 4
-    assert len(story.get_li_data()) == 16
+    # li flattens every action's options: a0(1) + a1(2) + a2(1), plus the one
+    # the converter adds so s2, whose home button is lit, has somewhere to go.
+    assert len(story.li) == 5
+    assert len(story.get_li_data()) == 20
 
 
 def test_start_node_points_at_the_first_option(telmi_pack, tmp_path):

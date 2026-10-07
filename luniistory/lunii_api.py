@@ -35,6 +35,7 @@ from pkg.api.constants import (  # noqa: E402
     LUNII_V3,
     which_ffmpeg,
 )
+from pkg.api.convert_audio import transcoding_required  # noqa: E402
 from pkg.api.device_lunii import LuniiDevice, is_lunii  # noqa: E402
 from pkg.api.devices import find_devices  # noqa: E402
 
@@ -49,6 +50,7 @@ __all__ = [
     "find_devices",
     "is_lunii",
     "lunii_stories",
+    "transcoding_required",
     "which_ffmpeg",
     "LUNII_V1",
     "LUNII_V2",

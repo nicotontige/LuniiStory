@@ -137,13 +137,18 @@ def build_story_json(metadata, nodes, pack_dir):
         return media_names[key]
 
     def transition(telmi_transition):
-        """Telmi ``{action, index}`` → STUdio ``{actionNode, optionIndex}``."""
+        """Telmi ``{action, index}`` → STUdio ``{actionNode, optionIndex}``.
+
+        A few packs spell the option ``indexItem``; -1 is kept as it is, since
+        STUdio uses it to mean "pick one at random".
+        """
         if not telmi_transition:
             return None
         action_id = telmi_transition.get("action")
         if action_id not in actions:
             return None
-        return {"actionNode": action_id, "optionIndex": int(telmi_transition.get("index") or 0)}
+        option = telmi_transition.get("index", telmi_transition.get("indexItem"))
+        return {"actionNode": action_id, "optionIndex": int(option if option is not None else 0)}
 
     # Cover node, rebuilt from metadata.json and startAction.
     cover_image = pack_dir / "title.png"
@@ -206,6 +211,8 @@ def build_story_json(metadata, nodes, pack_dir):
             if node[field] and node[field]["actionNode"] not in known_actions:
                 node[field] = None
 
+    _settle_controls(stage_nodes, action_nodes)
+
     story_json = {
         "format": "v1",
         "version": int(metadata.get("version") or 1) or 1,
@@ -221,6 +228,39 @@ def build_story_json(metadata, nodes, pack_dir):
         story_json["category"] = metadata["category"]
 
     return story_json, assets
+
+
+HOME_ACTION_ID = "luniistory-home"
+
+
+def _settle_controls(stage_nodes, action_nodes):
+    """Makes every enabled button lead somewhere.
+
+    Telmi packs leave buttons switched on with nothing behind them, because
+    Telmi OS answers those presses itself. A Lunii does not: it follows the
+    transition it was promised, reads an address that is not there and stops
+    with an SD card error. Home goes back to the cover, which is what the
+    button means on the device; OK has no sensible stand-in, so it goes dark.
+    """
+    cover_uuid = stage_nodes[0]["uuid"]
+    home_needed = any(
+        node["controlSettings"].get("home") and not node["homeTransition"]
+        for node in stage_nodes[1:]
+    )
+    if home_needed:
+        action_nodes.append({
+            "id": HOME_ACTION_ID,
+            "name": HOME_ACTION_ID,
+            "position": {"x": 0, "y": 0},
+            "options": [cover_uuid],
+        })
+
+    for node in stage_nodes[1:]:
+        controls = node["controlSettings"]
+        if controls.get("home") and not node["homeTransition"]:
+            node["homeTransition"] = {"actionNode": HOME_ACTION_ID, "optionIndex": 0}
+        if controls.get("ok") and not node["okTransition"]:
+            controls["ok"] = False
 
 
 def to_studio_zip(pack_dir, output_zip, progress=None):
