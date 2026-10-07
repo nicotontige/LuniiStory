@@ -4,8 +4,16 @@ Shown as a wall of covers: artwork is how these are recognised, and a list of
 titles made every feed look alike. Picking one fills the panel underneath.
 """
 
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPainter, QPen, QPixmap
+from PySide6.QtCore import QPoint, QSize, Qt
+from PySide6.QtGui import (
+    QColor,
+    QDesktopServices,
+    QIcon,
+    QPainter,
+    QPen,
+    QPixmap,
+    QPolygon,
+)
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -31,6 +39,7 @@ DETAIL_COVER = QSize(96, 96)
 
 ADDED_BORDER = QColor("#3f8f5a")
 BORDER_WIDTH = 4
+BADGE_SIZE = 26
 
 
 def _placeholder():
@@ -52,7 +61,9 @@ def _cover_icon(path, added):
     framed = QPixmap(pixmap.size())
     framed.fill(Qt.transparent)
     painter = QPainter(framed)
+    painter.setRenderHint(QPainter.Antialiasing)
     painter.drawPixmap(0, 0, pixmap)
+
     pen = QPen(ADDED_BORDER)
     pen.setWidth(BORDER_WIDTH)
     painter.setPen(pen)
@@ -61,8 +72,36 @@ def _cover_icon(path, added):
         inset, inset,
         framed.width() - BORDER_WIDTH, framed.height() - BORDER_WIDTH,
     )
+    _draw_tick(painter, framed.width())
     painter.end()
     return QIcon(framed)
+
+
+def _draw_tick(painter, width):
+    """A green badge in the top right, so the state reads at a glance.
+
+    The frame alone is easy to miss against artwork that is already colourful.
+    """
+    margin = BORDER_WIDTH + 2
+    left = width - margin - BADGE_SIZE
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(ADDED_BORDER)
+    painter.drawEllipse(left, margin, BADGE_SIZE, BADGE_SIZE)
+
+    pen = QPen(QColor("#ffffff"))
+    pen.setWidth(3)
+    pen.setCapStyle(Qt.RoundCap)
+    pen.setJoinStyle(Qt.RoundJoin)
+    painter.setPen(pen)
+    painter.setBrush(Qt.NoBrush)
+
+    # The three points of a check mark, as fractions of the badge.
+    tick = QPolygon([
+        QPoint(int(left + BADGE_SIZE * 0.26), int(margin + BADGE_SIZE * 0.52)),
+        QPoint(int(left + BADGE_SIZE * 0.44), int(margin + BADGE_SIZE * 0.70)),
+        QPoint(int(left + BADGE_SIZE * 0.76), int(margin + BADGE_SIZE * 0.32)),
+    ])
+    painter.drawPolyline(tick)
 
 
 class FeedDirectoryDialog(QDialog):
