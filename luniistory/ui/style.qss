@@ -15,12 +15,12 @@ QCheckBox {
 }
 
 #header {
-    background: #2A3270;
-    color: #ffffff;
+    background: #02D3BE;
+    color: #0D2B28;
 }
 
 #header QLabel {
-    color: #ffffff;
+    color: #0D2B28;
 }
 
 /* The header combo boxes deliberately keep the plain light styling. Painting
@@ -30,8 +30,8 @@ QComboBox QAbstractItemView {
     background: #ffffff;
     color: #2d2a26;
     border: 1px solid #d8d1c7;
-    selection-background-color: #6175E9;
-    selection-color: #ffffff;
+    selection-background-color: #02D3BE;
+    selection-color: #0D2B28;
 }
 
 #appTitle {
@@ -40,7 +40,7 @@ QComboBox QAbstractItemView {
 }
 
 #deviceStatus {
-    color: #d9cfe6;
+    color: #0D4B44;
 }
 
 QPushButton {
@@ -51,7 +51,7 @@ QPushButton {
 }
 
 QPushButton:hover {
-    border-color: #2A3270;
+    border-color: #0D2B28;
 }
 
 QPushButton:disabled {
@@ -60,20 +60,20 @@ QPushButton:disabled {
 }
 
 QPushButton#primary {
-    background: #6175E9;
+    background: #02D3BE;
     border: none;
-    color: #ffffff;
+    color: #0D2B28;
     font-weight: 600;
     padding: 9px 20px;
 }
 
 QPushButton#primary:hover {
-    background: #7E8FEF;
+    background: #2ADFCC;
 }
 
 QPushButton#primary:disabled {
-    background: #C7CDF2;
-    color: #F0F2FD;
+    background: #BDEBE5;
+    color: #6F938E;
 }
 
 QLineEdit, QComboBox {
@@ -92,7 +92,7 @@ QTabBar::tab {
 }
 
 QTabBar::tab:selected {
-    border-bottom: 2px solid #6175E9;
+    border-bottom: 2px solid #02D3BE;
     font-weight: 600;
 }
 
@@ -139,8 +139,8 @@ QCheckBox::indicator {
 }
 
 QCheckBox::indicator:checked {
-    background: #6175E9;
-    border-color: #6175E9;
+    background: #02D3BE;
+    border-color: #02D3BE;
 }
 
 #cardTitle {
@@ -177,7 +177,7 @@ QProgressBar {
 }
 
 QProgressBar::chunk {
-    background: #6175E9;
+    background: #02D3BE;
     border-radius: 5px;
 }
 
@@ -275,8 +275,8 @@ QListWidget::indicator {
 }
 
 QListWidget::indicator:checked {
-    background: #6175E9;
-    border-color: #6175E9;
+    background: #02D3BE;
+    border-color: #02D3BE;
 }
 
 QListWidget::indicator:disabled {
@@ -297,7 +297,7 @@ QListWidget::indicator:disabled {
 }
 
 #feedGrid::item:selected {
-    background: #E4E8FB;
+    background: #D8F7F3;
     color: #2d2a26;
 }
 
@@ -315,11 +315,11 @@ QListWidget::indicator:disabled {
 QPushButton#update {
     background: #FFB700;
     border: none;
-    color: #2A3270;
+    color: #0D2B28;
     font-weight: 600;
     padding: 7px 16px;
 }
 
 QPushButton#update:hover {
-    background: #ffc733;
+    background: #16413C;
 }
