@@ -81,7 +81,12 @@ release: check
 	@test -z "$$(git status --porcelain)" || { echo "✗ uncommitted changes"; exit 1; }
 	@git rev-parse "v$(VERSION)" >/dev/null 2>&1 && { echo "✗ v$(VERSION) already tagged"; exit 1; } || true
 	@echo "→ tagging v$(VERSION)"
-	git tag -a "v$(VERSION)" -m "luniiStory $(VERSION)"
+	@printf 'luniiStory $(VERSION)\n\nWrite what this release contains here.\n' > .tag-message
+	@$${EDITOR:-vi} .tag-message
+	# --cleanup=verbatim, or every markdown heading is taken for a comment and
+	# silently dropped — which is most of a set of release notes.
+	git tag -a "v$(VERSION)" --cleanup=verbatim -F .tag-message
+	@rm -f .tag-message
 	@echo "→ push it when ready: git push origin v$(VERSION)"
 
 clean:

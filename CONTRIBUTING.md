@@ -224,14 +224,19 @@ Two workflows run in GitHub Actions, with every action pinned to a commit SHA:
   architectures, then publishes the archives with their `SHA256SUMS` and a
   generated changelog.
 
-Cutting a release is three commands, the version living in
-`luniistory/__init__.py` alone:
+The tag's own message opens the release notes, so what a release contains is
+written where it is cut. Tag with `--cleanup=verbatim`: without it git takes
+every line starting with `#` for a comment and drops it, which is most of a set
+of markdown release notes.
 
 ```bash
 sed -i '' 's/0.1.0/0.2.0/' luniistory/__init__.py
 git commit -am "version 0.2.0"
-git tag v0.2.0 && git push --follow-tags
+git tag -a v0.2.0 --cleanup=verbatim -F notes.md
+git push --follow-tags
 ```
+
+`make release` opens an editor for that message and tags with the right flags.
 
 Running the workflow by hand from the Actions tab builds every platform without
 publishing anything, which is the way to rehearse a change to the recipe.
